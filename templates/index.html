@@ -727,8 +727,80 @@
         </div>
 
         <!-- Edit & Correct Panel -->
-        <div id="review-panel-edit" class="space-y-3 hidden">
-          <div>
+        <div id="review-panel-edit" class="space-y-3.5 hidden">
+
+          <!-- Cascading Kiln ID Synchronizer Section -->
+          <div id="cascading-kiln-container" class="space-y-3 p-3.5 bg-[#0b1329] light:bg-slate-100 border border-indigo-500/40 rounded-xl">
+            <div class="flex items-center justify-between border-b border-slate-800 light:border-slate-300 pb-2">
+              <div class="flex items-center space-x-2">
+                <span class="w-6 h-6 rounded-md bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
+                  <i class="fa-solid fa-link"></i>
+                </span>
+                <span class="text-xs font-bold text-slate-200 light:text-slate-800">Cascading ID Synchronization</span>
+              </div>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 light:text-indigo-700 border border-indigo-500/20 font-semibold">
+                Auto-Linked
+              </span>
+            </div>
+
+            <!-- Option A: Component-Level Fields -->
+            <div>
+              <div class="flex items-center justify-between mb-1.5">
+                <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option A: Edit Component Fields</span>
+                <span class="text-[10px] text-slate-400">Updates IDs dynamically</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <label class="block text-[10px] font-mono text-slate-400 mb-0.5">Division (1 digit)</label>
+                  <input type="text" id="cascade-division" maxlength="1"
+                    class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
+                    placeholder="1" oninput="onCascadeComponentChange()">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-mono text-slate-400 mb-0.5">District (2 digits)</label>
+                  <input type="text" id="cascade-district" maxlength="2"
+                    class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
+                    placeholder="02" oninput="onCascadeComponentChange()">
+                </div>
+                <div>
+                  <label class="block text-[10px] font-mono text-slate-400 mb-0.5">Kiln No. (3 digits)</label>
+                  <input type="text" id="cascade-kiln-number" maxlength="3"
+                    class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
+                    placeholder="006" oninput="onCascadeComponentChange()">
+                </div>
+              </div>
+            </div>
+
+            <!-- Option B: Direct Full Kiln ID Edit with Auto-Breakdown -->
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option B: Full Kiln Unique ID</span>
+                <span id="cascade-id-status" class="text-[10px] font-mono text-slate-400">6 digits</span>
+              </div>
+              <div class="relative">
+                <input type="text" id="cascade-kiln-id" maxlength="6"
+                  class="w-full px-3 py-2 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs font-mono font-bold text-amber-400 light:text-amber-600 tracking-wider focus:outline-none focus:border-amber-500"
+                  placeholder="102006" oninput="onCascadeFullIdChange()">
+              </div>
+              <div id="cascade-uniqueness-feedback" class="mt-1 text-[10px] font-mono"></div>
+            </div>
+
+            <!-- Dependent Worker Unique ID Preview -->
+            <div class="p-2.5 bg-[#070d1e] light:bg-slate-200/70 border border-slate-800 light:border-slate-300 rounded-lg flex items-center justify-between">
+              <div>
+                <div class="text-[10px] uppercase font-semibold tracking-wider text-slate-400 light:text-slate-600">Interrelated Worker Unique ID</div>
+                <div id="cascade-worker-id-preview" class="font-mono text-xs font-bold text-cyan-400 light:text-cyan-700 mt-0.5">
+                  --
+                </div>
+              </div>
+              <span id="cascade-worker-suffix-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 light:text-purple-700 border border-purple-500/30">
+                Zone: --
+              </span>
+            </div>
+          </div>
+
+          <!-- Generic Single Field Input (for age, hours, etc.) -->
+          <div id="generic-field-container">
             <label class="block text-xs font-medium text-slate-300 mb-1">Corrected Value for <span
                 id="edit-field-name-label" class="text-indigo-400 font-mono">--</span></label>
             <input type="text" id="edit-field-input"
@@ -736,11 +808,12 @@
               placeholder="Enter corrected value">
           </div>
 
+          <!-- Audit Reason Input (Mandatory for transparency) -->
           <div>
             <label class="block text-xs font-medium text-slate-300 mb-1">Audit Correction Reason</label>
             <input type="text" id="edit-reason-input"
               class="w-full px-3 py-2 bg-[#0b1329] border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-              placeholder="e.g. Typographical error during questionnaire entry.">
+              placeholder="e.g. Corrected duplicate kiln number to 007 after field verification.">
           </div>
         </div>
 
@@ -1073,6 +1146,20 @@
       }).join('');
     }
 
+    // Helper to determine if finding involves Kiln ID / interrelated cascading fields
+    function isKilnRelatedFinding(item) {
+      if (!item) return false;
+      return (
+        item.field === 'kiln_unique_id' ||
+        item.field === 'division' ||
+        item.field === 'district' ||
+        item.field === 'kiln_number' ||
+        item.rule_key === 'rule_duplicate_kiln_id' ||
+        item.rule_key === 'rule_kiln_id_mismatch' ||
+        item.rule_key === 'rule_worker_id_mismatch'
+      );
+    }
+
     // Open Review Modal
     function openReviewModal(encodedFindingId) {
       const findingId = decodeURIComponent(encodedFindingId);
@@ -1091,17 +1178,150 @@
       const badge = document.getElementById('modal-severity-badge');
       badge.textContent = item.severity;
 
-      // Pre-fill inputs
-      document.getElementById('edit-field-name-label').textContent = item.field;
-      document.getElementById('edit-field-input').value = item.original_value;
+      // Determine existing values from record or finding
+      const existingRec = state.submissions ? state.submissions.find(s => (s['meta-instanceID'] || s.instance_id || s.instanceId || s.KEY) === item.instanceID) : null;
+      
+      let suffix = 'F';
+      const rawWorkerUid = (existingRec && existingRec.worker_unique_id) || item.worker_unique_id || '';
+      if (rawWorkerUid && rawWorkerUid.includes('_')) {
+        suffix = rawWorkerUid.split('_').pop() || 'F';
+      } else {
+        const jz = (existingRec && existingRec.job_zone) || item.job_zone || '';
+        if (jz) suffix = jz[0].toUpperCase();
+      }
+      state.currentJobZoneSuffix = suffix;
+
+      const isKiln = isKilnRelatedFinding(item);
+      const cascadeContainer = document.getElementById('cascading-kiln-container');
+      const genericContainer = document.getElementById('generic-field-container');
+
+      if (isKiln) {
+        cascadeContainer.classList.remove('hidden');
+        genericContainer.classList.add('hidden');
+
+        // Extract division, district, kiln_number
+        let div = (item.division !== undefined && item.division !== null) ? String(item.division).trim() : '';
+        let dist = (item.district !== undefined && item.district !== null) ? String(item.district).trim().padStart(2, '0') : '';
+        let kiln = (item.kiln_number !== undefined && item.kiln_number !== null) ? String(item.kiln_number).trim().padStart(3, '0') : '';
+        let fullId = item.original_value && item.original_value.length === 6 ? item.original_value : (item.kiln_unique_id || '');
+
+        if (!div && existingRec && existingRec.division) div = String(existingRec.division).trim();
+        if (!dist && existingRec && existingRec.district) dist = String(existingRec.district).trim().padStart(2, '0');
+        if (!kiln && existingRec && existingRec.kiln_number) kiln = String(existingRec.kiln_number).trim().padStart(3, '0');
+
+        if ((!div || !dist || !kiln) && fullId && fullId.length === 6 && /^\d{6}$/.test(fullId)) {
+          div = fullId[0];
+          dist = fullId.substring(1, 3);
+          kiln = fullId.substring(3, 6);
+        }
+
+        if (!fullId && div && dist && kiln) {
+          fullId = `${div}${dist.padStart(2, '0')}${kiln.padStart(3, '0')}`;
+        }
+
+        document.getElementById('cascade-division').value = div || '1';
+        document.getElementById('cascade-district').value = dist || '02';
+        document.getElementById('cascade-kiln-number').value = kiln || '006';
+        document.getElementById('cascade-kiln-id').value = fullId || `${div || '1'}${dist || '02'}${kiln || '006'}`;
+        document.getElementById('cascade-worker-suffix-badge').textContent = `Zone Suffix: _${suffix}`;
+        document.getElementById('cascade-worker-id-preview').textContent = `${document.getElementById('cascade-kiln-id').value}_${suffix}`;
+
+        checkKilnIdUniqueness(document.getElementById('cascade-kiln-id').value, item.instanceID);
+      } else {
+        cascadeContainer.classList.add('hidden');
+        genericContainer.classList.remove('hidden');
+
+        document.getElementById('edit-field-name-label').textContent = item.field;
+        document.getElementById('edit-field-input').value = item.original_value;
+      }
+
       document.getElementById('approve-note').value = '';
-      document.getElementById('edit-reason-input').value = '';
+      document.getElementById('edit-reason-input').value = isKiln
+        ? 'Kiln ID and worker ID corrected to resolve duplicate and maintain structural integrity.'
+        : 'Value verified and corrected by reviewer.';
 
       // Default to approve tab
       setReviewTab('approve');
 
       const modal = document.getElementById('review-modal');
       modal.showModal();
+    }
+
+    // Cascade Event Handlers
+    function onCascadeComponentChange() {
+      const divInput = document.getElementById('cascade-division');
+      const distInput = document.getElementById('cascade-district');
+      const kilnInput = document.getElementById('cascade-kiln-number');
+
+      // Keep only digits
+      divInput.value = divInput.value.replace(/\D/g, '').slice(0, 1);
+      distInput.value = distInput.value.replace(/\D/g, '').slice(0, 2);
+      kilnInput.value = kilnInput.value.replace(/\D/g, '').slice(0, 3);
+
+      const div = divInput.value.trim() || '1';
+      const dist = distInput.value.trim().padStart(2, '0');
+      const kiln = kilnInput.value.trim().padStart(3, '0');
+
+      const fullId = `${div}${dist}${kiln}`;
+      const kilnIdInput = document.getElementById('cascade-kiln-id');
+      kilnIdInput.value = fullId;
+
+      const suffix = state.currentJobZoneSuffix || 'F';
+      document.getElementById('cascade-worker-id-preview').textContent = `${fullId}_${suffix}`;
+
+      const statusEl = document.getElementById('cascade-id-status');
+      statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 6 digits</span>';
+
+      checkKilnIdUniqueness(fullId, state.selectedFinding ? state.selectedFinding.instanceID : null);
+    }
+
+    function onCascadeFullIdChange() {
+      const kilnIdInput = document.getElementById('cascade-kiln-id');
+      kilnIdInput.value = kilnIdInput.value.replace(/\D/g, '').slice(0, 6);
+      const val = kilnIdInput.value.trim();
+
+      const suffix = state.currentJobZoneSuffix || 'F';
+      const statusEl = document.getElementById('cascade-id-status');
+
+      if (val.length === 6) {
+        document.getElementById('cascade-division').value = val[0];
+        document.getElementById('cascade-district').value = val.substring(1, 3);
+        document.getElementById('cascade-kiln-number').value = val.substring(3, 6);
+        document.getElementById('cascade-worker-id-preview').textContent = `${val}_${suffix}`;
+        statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 6 digits</span>';
+        checkKilnIdUniqueness(val, state.selectedFinding ? state.selectedFinding.instanceID : null);
+      } else {
+        document.getElementById('cascade-worker-id-preview').textContent = `${val || '--'}_${suffix}`;
+        statusEl.innerHTML = `<span class="text-amber-400 font-semibold">${val.length}/6 digits</span>`;
+        const fb = document.getElementById('cascade-uniqueness-feedback');
+        if (fb) fb.innerHTML = '<span class="text-slate-400">Enter complete 6 digits to auto-breakdown</span>';
+      }
+    }
+
+    function checkKilnIdUniqueness(fullId, currentInstId) {
+      const fb = document.getElementById('cascade-uniqueness-feedback');
+      if (!fb) return;
+      if (!fullId || fullId.length !== 6) {
+        fb.innerHTML = '';
+        return;
+      }
+
+      if (!state.submissions || state.submissions.length === 0) {
+        fb.innerHTML = '<span class="text-emerald-400 flex items-center space-x-1"><i class="fa-solid fa-circle-check"></i> <span>Ready to apply</span></span>';
+        return;
+      }
+
+      const collisions = state.submissions.filter(s => {
+        const k = s.kiln_unique_id || (s.data && s.data.kiln_unique_id);
+        const inst = s['meta-instanceID'] || s.instance_id || s.instanceId || s.KEY;
+        return String(k).trim() === String(fullId).trim() && inst !== currentInstId;
+      });
+
+      if (collisions.length > 0) {
+        fb.innerHTML = `<span class="text-amber-400 flex items-center space-x-1.5 font-medium"><i class="fa-solid fa-triangle-exclamation"></i> <span>Warning: Kiln ID ${fullId} is already in use by ${collisions.length} other record(s)</span></span>`;
+      } else {
+        fb.innerHTML = `<span class="text-emerald-400 flex items-center space-x-1.5 font-medium"><i class="fa-solid fa-circle-check"></i> <span>Unique Kiln ID! Resolves duplicate collision.</span></span>`;
+      }
     }
 
     function closeReviewModal() {
@@ -1144,14 +1364,47 @@
 
       const item = state.selectedFinding;
       const isApprove = state.reviewAction === 'approve';
+      const isKiln = isKilnRelatedFinding(item);
+
+      let newFieldVal = item.original_value;
+      let cascadingUpdates = null;
+
+      if (!isApprove) {
+        if (isKiln) {
+          const divVal = parseInt(document.getElementById('cascade-division').value, 10);
+          const distVal = document.getElementById('cascade-district').value.trim().padStart(2, '0');
+          const kilnVal = document.getElementById('cascade-kiln-number').value.trim().padStart(3, '0');
+          const kilnIdVal = document.getElementById('cascade-kiln-id').value.trim();
+
+          if (kilnIdVal.length !== 6 || !/^\d{6}$/.test(kilnIdVal)) {
+            showToast('Please provide a complete 6-digit Kiln ID (e.g. 102007)', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Save Correction & Resolve</span>';
+            return;
+          }
+
+          const workerIdVal = `${kilnIdVal}_${state.currentJobZoneSuffix || 'F'}`;
+          newFieldVal = kilnIdVal;
+          cascadingUpdates = {
+            division: isNaN(divVal) ? 1 : divVal,
+            district: distVal,
+            kiln_number: kilnVal,
+            kiln_unique_id: kilnIdVal,
+            worker_unique_id: workerIdVal
+          };
+        } else {
+          newFieldVal = document.getElementById('edit-field-input').value;
+        }
+      }
 
       const payload = {
         instanceID: item.instanceID,
         finding_id: item.finding_id,
         rule_key: item.rule_key,
         action: isApprove ? 'approve' : 'edit',
-        field: item.field,
-        new_value: isApprove ? item.original_value : document.getElementById('edit-field-input').value,
+        field: isKiln ? 'kiln_unique_id' : item.field,
+        new_value: isApprove ? item.original_value : newFieldVal,
+        cascading_updates: cascadingUpdates,
         reason: isApprove
           ? (document.getElementById('approve-note').value || 'Approved as-is by reviewer.')
           : (document.getElementById('edit-reason-input').value || 'Corrected by reviewer.')
@@ -1169,7 +1422,7 @@
 
         if (resp.ok) {
           closeReviewModal();
-          showToast(isApprove ? 'Record approved as-is!' : 'Correction saved and finding resolved.', 'success');
+          showToast(isApprove ? 'Record approved as-is!' : 'Kiln & Worker IDs synchronized and finding resolved!', 'success');
 
           // Re-evaluate validation immediately
           await triggerRunValidation(false);
@@ -1185,6 +1438,7 @@
         btn.innerHTML = '<i class="fa-solid fa-check"></i> <span id="btn-submit-review-text">' + (isApprove ? 'Approve As-is' : 'Save Correction & Resolve') + '</span>';
       }
     }
+
 
     // Sync ODK Central
     async function triggerSyncODK() {

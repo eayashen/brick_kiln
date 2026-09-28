@@ -3,7 +3,7 @@ import re
 import json
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 
 import requests
 import pandas as pd
@@ -226,7 +226,7 @@ class ResilientDBStore:
             self.memory_store[CLEAN_COLLECTION][inst_str] = doc
             self._save_fallback()
 
-    def update_clean_record(self, instance_id: str, updates: Dict[str, Any], resolved_flag: Optional[str] = None):
+    def update_clean_record(self, instance_id: str, updates: Dict[str, Any], resolved_flag: Optional[Union[str, List[str]]] = None):
         if self.is_connected_to_mongo:
             query = {
                 "$or": [
@@ -240,9 +240,12 @@ class ResilientDBStore:
             current = self.db[CLEAN_COLLECTION].find_one(query)
             if not current:
                 return False
-            resolved = current.get("_resolved_flags", [])
-            if resolved_flag and resolved_flag not in resolved:
-                resolved.append(resolved_flag)
+            resolved = list(current.get("_resolved_flags", []))
+            if resolved_flag:
+                flags_list = [resolved_flag] if isinstance(resolved_flag, str) else resolved_flag
+                for fl in flags_list:
+                    if fl and fl not in resolved:
+                        resolved.append(fl)
             
             modified = current.get("_modified_fields", {})
             for k, v in updates.items():
@@ -269,8 +272,11 @@ class ResilientDBStore:
                 return False
             rec = self.memory_store[CLEAN_COLLECTION][instance_id]
             resolved = rec.setdefault("_resolved_flags", [])
-            if resolved_flag and resolved_flag not in resolved:
-                resolved.append(resolved_flag)
+            if resolved_flag:
+                flags_list = [resolved_flag] if isinstance(resolved_flag, str) else resolved_flag
+                for fl in flags_list:
+                    if fl and fl not in resolved:
+                        resolved.append(fl)
             
             modified = rec.setdefault("_modified_fields", {})
             for k, v in updates.items():
@@ -723,6 +729,15 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
         if resolved_flags or modified_fields:
             corrected_records_count += 1
 
+        def append_finding(base_dict: Dict[str, Any]):
+            base_dict.setdefault("division", doc.get("division"))
+            base_dict.setdefault("district", doc.get("district"))
+            base_dict.setdefault("kiln_number", doc.get("kiln_number"))
+            base_dict.setdefault("kiln_unique_id", doc.get("kiln_unique_id"))
+            base_dict.setdefault("job_zone", doc.get("job_zone"))
+            base_dict.setdefault("worker_unique_id", doc.get("worker_unique_id"))
+            findings.append(base_dict)
+
         # 1. Kiln ID Formula Verification:
         # Expected kiln_unique_id = Division (1 digit) + District (2 digits) + Kiln Number (3 digits)
         raw_div = doc.get("division")
@@ -744,7 +759,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
         if expected_kiln_id and actual_kiln_id != expected_kiln_id:
             if rule_kiln_mismatch not in resolved_flags:
                 records_with_unresolved_issues.add(inst_id)
-                findings.append({
+                append_finding({
                     "finding_id": f"{inst_id}_{rule_kiln_mismatch}",
                     "rule_key": rule_kiln_mismatch,
                     "severity": "ERROR",
@@ -765,7 +780,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
             if rule_dup_kiln not in resolved_flags:
                 records_with_unresolved_issues.add(inst_id)
                 count_dups = kiln_id_counts[actual_kiln_id]
-                findings.append({
+                append_finding({
                     "finding_id": f"{inst_id}_{rule_dup_kiln}",
                     "rule_key": rule_dup_kiln,
                     "severity": "DUPLICATE_KILN_ID",
@@ -789,7 +804,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
             if worker_uid != expected_worker_id:
                 if rule_worker_id not in resolved_flags:
                     records_with_unresolved_issues.add(inst_id)
-                    findings.append({
+                    append_finding({
                         "finding_id": f"{inst_id}_{rule_worker_id}",
                         "rule_key": rule_worker_id,
                         "severity": "ERROR",
@@ -813,7 +828,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                 if age_val < 18 or age_val > 45:
                     if rule_age not in resolved_flags:
                         records_with_unresolved_issues.add(inst_id)
-                        findings.append({
+                        append_finding({
                             "finding_id": f"{inst_id}_{rule_age}",
                             "rule_key": rule_age,
                             "severity": "REVIEW_FLAG",
@@ -837,7 +852,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
         if heat == "yes" and med == "no":
             if rule_health not in resolved_flags:
                 records_with_unresolved_issues.add(inst_id)
-                findings.append({
+                append_finding({
                     "finding_id": f"{inst_id}_{rule_health}",
                     "rule_key": rule_health,
                     "severity": "REVIEW_FLAG",
@@ -860,7 +875,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                 hrs = float(raw_hours)
                 if hrs > 12:
                     if rule_hours not in resolved_flags:
-                        findings.append({
+                        append_finding({
                             "finding_id": f"{inst_id}_{rule_hours}",
                             "rule_key": rule_hours,
                             "severity": "WARNING",
@@ -876,6 +891,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                         })
             except (ValueError, TypeError):
                 pass
+
 
     total_submissions = len(submissions)
     
@@ -915,6 +931,7 @@ class ResolveFindingRequest(BaseModel):
     field: Optional[str] = None
     new_value: Optional[Any] = None
     reason: Optional[str] = "Approved via Quality Monitor"
+    cascading_updates: Optional[Dict[str, Any]] = None
 
 # ------------------------------------------------------------------------------
 # API Endpoints
@@ -965,8 +982,9 @@ async def api_run_validation(user: Dict[str, Any] = Depends(get_current_user)):
 @app.post("/api/resolve-finding")
 async def api_resolve_finding(payload: ResolveFindingRequest, user: Dict[str, Any] = Depends(get_current_user)):
     """
-    Accepts payload { instanceID, finding_id, action: 'approve' | 'edit', field, new_value, user }.
+    Accepts payload { instanceID, finding_id, action: 'approve' | 'edit', field, new_value, user, cascading_updates }.
     Logs to audit_logs, updates cleaned_submissions, marks finding resolved.
+    Enforces Cascading ID Validation & Interrelated Field Synchronization for Kiln and Worker IDs.
     """
     current_rec = db_store.get_clean_by_instance(payload.instanceID)
     if not current_rec:
@@ -999,46 +1017,136 @@ async def api_resolve_finding(payload: ResolveFindingRequest, user: Dict[str, An
         return {"status": "success", "message": "Finding marked as approved as-is.", "instanceID": payload.instanceID}
 
     elif payload.action == "edit":
-        if payload.field is None or payload.new_value is None:
-            raise HTTPException(status_code=400, detail="Field name and new_value required for edit action.")
-        
-        # Format types appropriately if field is numeric
-        new_val = payload.new_value
-        if payload.field in ["worker_age", "kiln_number", "division", "district", "daily_hours", "monthly_income"]:
-            try:
-                if "." in str(new_val):
-                    new_val = float(new_val)
-                else:
-                    new_val = int(new_val)
-            except Exception:
-                pass
+        # Check if Kiln ID related or cascading updates passed
+        is_kiln_id_edit = (
+            (payload.field in ["kiln_unique_id", "division", "district", "kiln_number"]) or
+            (payload.rule_key in ["rule_duplicate_kiln_id", "rule_kiln_id_mismatch", "rule_worker_id_mismatch"]) or
+            bool(payload.cascading_updates)
+        )
 
-        updates = {payload.field: new_val}
-        
-        # If kiln_unique_id was edited, also auto-update worker_unique_id if appropriate
-        if payload.field == "kiln_unique_id" and "job_zone" in current_rec:
-            jz = str(current_rec["job_zone"]).strip()
-            if jz:
-                updates["worker_unique_id"] = f"{new_val}_{jz[0].upper()}"
+        updates = {}
+        affected_fields = []
+        resolved_rules = [finding_key]
 
+        if is_kiln_id_edit:
+            casc = payload.cascading_updates or {}
+            
+            # Baseline values from current record
+            curr_div = current_rec.get("division")
+            curr_dist = current_rec.get("district")
+            curr_kiln = current_rec.get("kiln_number")
+            curr_kiln_id = str(current_rec.get("kiln_unique_id", "")).strip()
+            curr_worker_id = str(current_rec.get("worker_unique_id", "")).strip()
+
+            target_kiln_id = None
+            if "kiln_unique_id" in casc and str(casc["kiln_unique_id"]).strip():
+                target_kiln_id = str(casc["kiln_unique_id"]).strip()
+            elif payload.field == "kiln_unique_id" and payload.new_value is not None:
+                target_kiln_id = str(payload.new_value).strip()
+
+            if target_kiln_id and len(target_kiln_id) == 6 and target_kiln_id.isdigit():
+                # Option B: Direct full Kiln ID breakdown
+                new_div = int(target_kiln_id[0])
+                new_dist = target_kiln_id[1:3]
+                new_kiln = target_kiln_id[3:6]
+                final_kiln_id = target_kiln_id
+            else:
+                # Option A: Component-level inputs
+                raw_d = casc.get("division", payload.new_value if payload.field == "division" else curr_div)
+                raw_dt = casc.get("district", payload.new_value if payload.field == "district" else curr_dist)
+                raw_k = casc.get("kiln_number", payload.new_value if payload.field == "kiln_number" else curr_kiln)
+
+                try:
+                    d_int = int(str(raw_d).strip())
+                    dt_int = int(str(raw_dt).strip())
+                    k_int = int(str(raw_k).strip())
+                    new_div = d_int
+                    new_dist = f"{dt_int:02d}"
+                    new_kiln = f"{k_int:03d}"
+                    final_kiln_id = f"{new_div}{new_dist}{new_kiln}"
+                except Exception:
+                    final_kiln_id = str(target_kiln_id or curr_kiln_id)
+                    new_div = raw_d
+                    new_dist = raw_dt
+                    new_kiln = raw_k
+
+            # Job zone suffix derivation
+            suffix = None
+            if curr_worker_id and "_" in curr_worker_id:
+                parts = curr_worker_id.rsplit("_", 1)
+                if len(parts) == 2 and parts[1]:
+                    suffix = parts[1]
+            if not suffix:
+                jz = str(current_rec.get("job_zone", "")).strip()
+                suffix = jz[0].upper() if jz else "F"
+
+            final_worker_id = f"{final_kiln_id}_{suffix}"
+
+            updates = {
+                "division": new_div,
+                "district": new_dist,
+                "kiln_number": new_kiln,
+                "kiln_unique_id": final_kiln_id,
+                "worker_unique_id": final_worker_id
+            }
+            affected_fields = ["division", "district", "kiln_number", "kiln_unique_id", "worker_unique_id"]
+
+            resolved_rules = list(set([
+                finding_key,
+                "rule_duplicate_kiln_id",
+                "rule_kiln_id_mismatch",
+                "rule_worker_id_mismatch"
+            ]))
+        else:
+            if payload.field is None or payload.new_value is None:
+                raise HTTPException(status_code=400, detail="Field name and new_value required for edit action.")
+            
+            new_val = payload.new_value
+            if payload.field in ["worker_age", "daily_hours", "monthly_income"]:
+                try:
+                    new_val = float(new_val) if "." in str(new_val) else int(new_val)
+                except Exception:
+                    pass
+            updates = {payload.field: new_val}
+            affected_fields = [payload.field]
+
+        # Atomically update cleaned_submissions
         db_store.update_clean_record(
             instance_id=payload.instanceID,
             updates=updates,
-            resolved_flag=finding_key
+            resolved_flag=resolved_rules
         )
 
-        db_store.add_audit_log({
-            "instanceID": payload.instanceID,
-            "action": "EDITED_AND_CORRECTED",
-            "field": payload.field,
-            "old_value": str(old_value),
-            "new_value": str(new_val),
-            "changed_by": actor,
-            "notes": payload.reason or "Value corrected by user.",
-            "rule_resolved": finding_key
-        })
-        logger.info("Record %s field %s edited to %s by %s", payload.instanceID, payload.field, new_val, actor)
-        return {"status": "success", "message": f"Field '{payload.field}' updated successfully.", "instanceID": payload.instanceID}
+        # Audit logs for all affected fields
+        for f in affected_fields:
+            old_f_val = current_rec.get(f, "")
+            new_f_val = updates.get(f, "")
+            # Log if value changed or if it was the explicitly targeted field
+            if str(old_f_val) != str(new_f_val) or f == (payload.field or "kiln_unique_id"):
+                action_name = "EDITED_AND_CORRECTED" if f == (payload.field or "kiln_unique_id") else "CASCADING_FIELD_UPDATE"
+                note_text = payload.reason or "Value corrected by reviewer."
+                if f != (payload.field or "kiln_unique_id"):
+                    note_text = f"Cascading synchronization from Kiln ID ({updates.get('kiln_unique_id')}). {note_text}"
+
+                db_store.add_audit_log({
+                    "instanceID": payload.instanceID,
+                    "action": action_name,
+                    "field": f,
+                    "old_value": str(old_f_val) if old_f_val is not None else "",
+                    "new_value": str(new_f_val),
+                    "changed_by": actor,
+                    "notes": note_text,
+                    "rule_resolved": finding_key
+                })
+
+        logger.info("Record %s updated with fields %s by %s", payload.instanceID, updates, actor)
+        return {
+            "status": "success",
+            "message": "Kiln ID and interrelated fields synchronized successfully.",
+            "updated_fields": updates,
+            "instanceID": payload.instanceID
+        }
+
 
     else:
         raise HTTPException(status_code=400, detail="Invalid action. Must be 'approve' or 'edit'.")
@@ -1209,6 +1317,14 @@ async def api_get_submissions(
         "limit": limit,
         "records": paginated
     }
+
+
+@app.get("/api/submissions/{instance_id:path}")
+async def api_get_submission_by_id(instance_id: str, user: Dict[str, Any] = Depends(get_current_user)):
+    rec = db_store.get_clean_by_instance(instance_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail=f"Submission {instance_id} not found.")
+    return rec
 
 
 @app.get("/api/audit-logs")
