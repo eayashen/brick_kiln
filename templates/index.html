@@ -461,12 +461,10 @@
               class="px-2.5 py-1.5 bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-lg text-xs text-slate-200 light:text-slate-800 focus:outline-none">
               <option value="all">All Zones</option>
               <option value="firing">Firing</option>
-              <option value="moulding">Moulding</option>
-              <option value="stacking">Stacking</option>
+              <option value="unloading">Unloader</option>
+              <option value="cooling">Cooling</option>
               <option value="loading">Loading</option>
-              <option value="transport">Transport</option>
-              <option value="carrying">Carrying</option>
-              <option value="sorting">Sorting</option>
+              <option value="moving">Moving</option>
             </select>
           </div>
         </div>
@@ -730,15 +728,18 @@
         <div id="review-panel-edit" class="space-y-3.5 hidden">
 
           <!-- Cascading Kiln ID Synchronizer Section -->
-          <div id="cascading-kiln-container" class="space-y-3 p-3.5 bg-[#0b1329] light:bg-slate-100 border border-indigo-500/40 rounded-xl">
+          <div id="cascading-kiln-container"
+            class="space-y-3 p-3.5 bg-[#0b1329] light:bg-slate-100 border border-indigo-500/40 rounded-xl">
             <div class="flex items-center justify-between border-b border-slate-800 light:border-slate-300 pb-2">
               <div class="flex items-center space-x-2">
-                <span class="w-6 h-6 rounded-md bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
+                <span
+                  class="w-6 h-6 rounded-md bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
                   <i class="fa-solid fa-link"></i>
                 </span>
                 <span class="text-xs font-bold text-slate-200 light:text-slate-800">Cascading ID Synchronization</span>
               </div>
-              <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 light:text-indigo-700 border border-indigo-500/20 font-semibold">
+              <span
+                class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 light:text-indigo-700 border border-indigo-500/20 font-semibold">
                 Auto-Linked
               </span>
             </div>
@@ -746,7 +747,8 @@
             <!-- Option A: Component-Level Fields -->
             <div>
               <div class="flex items-center justify-between mb-1.5">
-                <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option A: Edit Component Fields</span>
+                <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option A: Edit Component
+                  Fields</span>
                 <span class="text-[10px] text-slate-400">Updates IDs dynamically</span>
               </div>
               <div class="grid grid-cols-3 gap-2">
@@ -774,7 +776,8 @@
             <!-- Option B: Direct Full Kiln ID Edit with Auto-Breakdown -->
             <div>
               <div class="flex items-center justify-between mb-1">
-                <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option B: Full Kiln Unique ID</span>
+                <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option B: Full Kiln Unique
+                  ID</span>
                 <span id="cascade-id-status" class="text-[10px] font-mono text-slate-400">6 digits</span>
               </div>
               <div class="relative">
@@ -786,14 +789,18 @@
             </div>
 
             <!-- Dependent Worker Unique ID Preview -->
-            <div class="p-2.5 bg-[#070d1e] light:bg-slate-200/70 border border-slate-800 light:border-slate-300 rounded-lg flex items-center justify-between">
+            <div
+              class="p-2.5 bg-[#070d1e] light:bg-slate-200/70 border border-slate-800 light:border-slate-300 rounded-lg flex items-center justify-between">
               <div>
-                <div class="text-[10px] uppercase font-semibold tracking-wider text-slate-400 light:text-slate-600">Interrelated Worker Unique ID</div>
-                <div id="cascade-worker-id-preview" class="font-mono text-xs font-bold text-cyan-400 light:text-cyan-700 mt-0.5">
+                <div class="text-[10px] uppercase font-semibold tracking-wider text-slate-400 light:text-slate-600">
+                  Interrelated Worker Unique ID</div>
+                <div id="cascade-worker-id-preview"
+                  class="font-mono text-xs font-bold text-cyan-400 light:text-cyan-700 mt-0.5">
                   --
                 </div>
               </div>
-              <span id="cascade-worker-suffix-badge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 light:text-purple-700 border border-purple-500/30">
+              <span id="cascade-worker-suffix-badge"
+                class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 light:text-purple-700 border border-purple-500/30">
                 Zone: --
               </span>
             </div>
@@ -1180,7 +1187,7 @@
 
       // Determine existing values from record or finding
       const existingRec = state.submissions ? state.submissions.find(s => (s['meta-instanceID'] || s.instance_id || s.instanceId || s.KEY) === item.instanceID) : null;
-      
+
       let suffix = 'F';
       const rawWorkerUid = (existingRec && existingRec.worker_unique_id) || item.worker_unique_id || '';
       if (rawWorkerUid && rawWorkerUid.includes('_')) {
