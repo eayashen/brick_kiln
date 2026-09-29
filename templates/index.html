@@ -151,7 +151,7 @@
             </span>
             <input type="text" id="login-username" required
               class="w-full pl-9 pr-4 py-2.5 bg-[#0b1329] border border-slate-700 rounded-lg text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-              placeholder="e.g. eayashen or meftah">
+              placeholder="username">
           </div>
         </div>
 
@@ -175,6 +175,7 @@
       </form>
 
       <!-- Quick Fill Credentials -->
+      <!--
       <div class="mt-6 pt-5 border-t border-slate-800">
         <p class="text-xs text-slate-400 mb-2 font-medium">Quick Demo Sign-In:</p>
         <div class="grid grid-cols-2 gap-2">
@@ -192,898 +193,909 @@
       </div>
     </div>
   </div>
+  -->
 
-  <!-- ========================================================================= -->
-  <!-- TOP NAVIGATION HEADER (Matching Screenshot) -->
-  <!-- ========================================================================= -->
-  <header
-    class="w-full bg-[#0b1329] dark:bg-[#0b1329] light:bg-white border-b border-[#1e293b] light:border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-40 theme-transition shadow-sm">
-    <!-- Logo & Title -->
-    <div class="flex items-center space-x-3.5">
-      <div
-        class="w-10 h-10 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md tracking-wider">
-        BK
-      </div>
-      <div>
-        <h1 class="text-lg font-bold text-white light:text-slate-900 tracking-tight leading-snug">Brick Kiln Data
-          Quality Monitor</h1>
-        <p class="text-xs text-slate-400 light:text-slate-500 font-medium">Form: brick_kiln_survey • Project 5</p>
-      </div>
-    </div>
-
-    <!-- Action Buttons & Controls -->
-    <div class="flex items-center space-x-3">
-      <!-- Light / Dark Mode Toggle -->
-      <button onclick="toggleTheme()"
-        class="p-2 text-slate-400 hover:text-white light:hover:text-slate-900 rounded-lg border border-[#1e293b] light:border-slate-300 hover:bg-slate-800/50 light:hover:bg-slate-100 text-sm transition"
-        title="Toggle theme">
-        <i id="theme-icon" class="fa-solid fa-moon"></i>
-      </button>
-
-      <!-- Run Validation Button (Yellow lightning bolt, dark pill) -->
-      <button onclick="triggerRunValidation()" id="btn-run-validation"
-        class="flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-[#111a36] hover:bg-slate-800 light:bg-slate-100 light:hover:bg-slate-200 border border-[#1e293b] light:border-slate-300 text-white light:text-slate-800 text-xs font-semibold shadow-sm transition">
-        <i class="fa-solid fa-bolt text-amber-400"></i>
-        <span>Run Validation</span>
-      </button>
-
-      <!-- Sync ODK Now Button (Blue button, refresh icon with spin on click) -->
-      <button onclick="triggerSyncODK()" id="btn-sync-odk"
-        class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md hover:shadow-blue-500/20 transition">
-        <i id="sync-icon" class="fa-solid fa-rotate"></i>
-        <span>Sync ODK Now</span>
-      </button>
-
-      <!-- Active User Profile Pill -->
-      <div class="flex items-center space-x-2 pl-2 border-l border-slate-700 light:border-slate-300">
-        <div
-          class="px-3 py-1.5 rounded-lg bg-[#111a36] light:bg-slate-100 border border-[#1e293b] light:border-slate-300 text-xs flex items-center space-x-2">
-          <div id="user-avatar"
-            class="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center">
-            E
+      <!-- ========================================================================= -->
+      <!-- TOP NAVIGATION HEADER (Matching Screenshot) -->
+      <!-- ========================================================================= -->
+      <header
+        class="w-full bg-[#0b1329] dark:bg-[#0b1329] light:bg-white border-b border-[#1e293b] light:border-slate-200 px-6 py-3.5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-40 theme-transition shadow-sm">
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-3.5">
+          <div
+            class="w-10 h-10 rounded-lg bg-gradient-to-tr from-purple-600 via-indigo-600 to-pink-500 flex items-center justify-center text-white font-extrabold text-xl shadow-md tracking-wider">
+            BK
           </div>
-          <span id="header-username" class="font-medium text-slate-200 light:text-slate-800">eayashen</span>
-        </div>
-
-        <button onclick="handleLogout()"
-          class="p-2 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 text-xs transition"
-          title="Sign out">
-          <i class="fa-solid fa-right-from-bracket"></i>
-        </button>
-      </div>
-    </div>
-  </header>
-
-  <!-- ========================================================================= -->
-  <!-- MAIN DASHBOARD CONTENT -->
-  <!-- ========================================================================= -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-6 space-y-6">
-
-    <!-- 6 METRIC KPI CARDS (Matching Screenshot Top Grid) -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-
-      <!-- 1. TOTAL SUBMISSIONS -->
-      <div
-        class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
-        <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">Total
-          Submissions</div>
-        <div id="kpi-total-submissions" class="text-2xl font-extrabold text-white light:text-slate-900 tracking-tight">
-          --</div>
-        <div class="w-8 h-1 bg-slate-600 rounded-full mt-2"></div>
-      </div>
-
-      <!-- 2. VALID RECORDS -->
-      <div
-        class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
-        <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">Valid
-          Records</div>
-        <div id="kpi-valid-records"
-          class="text-2xl font-extrabold text-emerald-400 light:text-emerald-600 tracking-tight">--</div>
-        <div class="w-8 h-1 bg-emerald-500 rounded-full mt-2"></div>
-      </div>
-
-      <!-- 3. OPEN ERRORS -->
-      <div
-        class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
-        <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">Open Errors
-        </div>
-        <div id="kpi-open-errors" class="text-2xl font-extrabold text-rose-400 light:text-rose-600 tracking-tight">--
-        </div>
-        <div class="w-8 h-1 bg-rose-500 rounded-full mt-2"></div>
-      </div>
-
-      <!-- 4. DUPLICATE KILN IDS -->
-      <div
-        class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
-        <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">Duplicate
-          Kiln IDs</div>
-        <div id="kpi-duplicate-kiln-ids"
-          class="text-2xl font-extrabold text-amber-400 light:text-amber-600 tracking-tight">--</div>
-        <div class="w-8 h-1 bg-amber-500 rounded-full mt-2"></div>
-      </div>
-
-      <!-- 5. REVIEW FLAGS -->
-      <div
-        class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
-        <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">Review
-          Flags</div>
-        <div id="kpi-review-flags" class="text-2xl font-extrabold text-purple-400 light:text-purple-600 tracking-tight">
-          --</div>
-        <div class="w-8 h-1 bg-purple-500 rounded-full mt-2"></div>
-      </div>
-
-      <!-- 6. CORRECTED RECORDS -->
-      <div
-        class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
-        <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">Corrected
-          Records</div>
-        <div id="kpi-corrected-records"
-          class="text-2xl font-extrabold text-cyan-400 light:text-cyan-600 tracking-tight">--</div>
-        <div class="w-8 h-1 bg-cyan-500 rounded-full mt-2"></div>
-      </div>
-
-    </div>
-
-    <!-- ======================================================================= -->
-    <!-- NAVIGATION TABS (Matching Screenshot) -->
-    <!-- ======================================================================= -->
-    <div class="border-b border-[#1e293b] light:border-slate-200 flex space-x-6 text-sm theme-transition">
-      <button onclick="switchTab('data-quality')" id="tab-data-quality"
-        class="py-3 px-1 text-slate-400 light:text-slate-600 hover:text-white light:hover:text-slate-900 border-b-2 border-transparent transition flex items-center space-x-2 tab-active">
-        <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
-        <span>Data Quality & Errors</span>
-      </button>
-
-      <button onclick="switchTab('submissions-registry')" id="tab-submissions-registry"
-        class="py-3 px-1 text-slate-400 light:text-slate-600 hover:text-white light:hover:text-slate-900 border-b-2 border-transparent transition flex items-center space-x-2">
-        <i class="fa-solid fa-table-list"></i>
-        <span>Submissions Registry</span>
-      </button>
-
-      <button onclick="switchTab('sync-logs')" id="tab-sync-logs"
-        class="py-3 px-1 text-slate-400 light:text-slate-600 hover:text-white light:hover:text-slate-900 border-b-2 border-transparent transition flex items-center space-x-2">
-        <i class="fa-solid fa-satellite-dish text-sky-400"></i>
-        <span>Sync Logs</span>
-      </button>
-
-      <button onclick="switchTab('export-center')" id="tab-export-center"
-        class="py-3 px-1 text-slate-400 light:text-slate-600 hover:text-white light:hover:text-slate-900 border-b-2 border-transparent transition flex items-center space-x-2">
-        <i class="fa-solid fa-box-archive text-amber-600"></i>
-        <span>Export & R Script Center</span>
-      </button>
-    </div>
-
-    <!-- ======================================================================= -->
-    <!-- TAB 1: DATA QUALITY & ERRORS (Default View matching Screenshot) -->
-    <!-- ======================================================================= -->
-    <section id="panel-data-quality" class="space-y-4">
-      <div
-        class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition">
-
-        <!-- Header row of the card -->
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
-          <h2 class="text-base font-bold text-white light:text-slate-900 tracking-tight">Validation Findings & Flagged
-            Errors</h2>
-          <span class="text-xs text-slate-400 light:text-slate-500 font-medium flex items-center space-x-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>Showing active flags</span>
-          </span>
-        </div>
-
-        <!-- Filter Bar matching screenshot: Filter: All Findings | Errors Only | Duplicate Kiln IDs | Review Flags | Warnings -->
-        <div class="flex flex-wrap items-center gap-2 mb-4 text-xs">
-          <span class="text-slate-400 light:text-slate-600 font-semibold mr-1">Filter:</span>
-
-          <button onclick="filterFindings('all')" id="filter-btn-all"
-            class="px-3 py-1.5 rounded-full bg-indigo-600 text-white font-medium shadow-sm transition">
-            All Findings
-          </button>
-
-          <button onclick="filterFindings('errors')" id="filter-btn-errors"
-            class="px-3 py-1.5 rounded-full bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:border-rose-500/50 flex items-center space-x-1.5 transition">
-            <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-            <span>Errors Only</span>
-          </button>
-
-          <button onclick="filterFindings('duplicates')" id="filter-btn-duplicates"
-            class="px-3 py-1.5 rounded-full bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:border-amber-500/50 flex items-center space-x-1.5 transition">
-            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-            <span>Duplicate Kiln IDs</span>
-          </button>
-
-          <button onclick="filterFindings('reviews')" id="filter-btn-reviews"
-            class="px-3 py-1.5 rounded-full bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:border-purple-500/50 flex items-center space-x-1.5 transition">
-            <span class="w-2 h-2 rounded-full bg-purple-500"></span>
-            <span>Review Flags</span>
-          </button>
-
-          <button onclick="filterFindings('warnings')" id="filter-btn-warnings"
-            class="px-3 py-1.5 rounded-full bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:border-yellow-500/50 flex items-center space-x-1.5 transition">
-            <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
-            <span>Warnings</span>
-          </button>
-        </div>
-
-        <!-- Findings Responsive Table -->
-        <div class="overflow-x-auto rounded-lg border border-[#1e293b] light:border-slate-200">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr
-                class="bg-[#0d1527] light:bg-slate-100 text-slate-400 light:text-slate-600 uppercase tracking-wider font-semibold border-b border-[#1e293b] light:border-slate-200">
-                <th class="py-3 px-4">Severity</th>
-                <th class="py-3 px-4">Submission By</th>
-                <th class="py-3 px-4">Field</th>
-                <th class="py-3 px-4">Original Value</th>
-                <th class="py-3 px-4">Detected Issue</th>
-                <th class="py-3 px-4">Status</th>
-                <th class="py-3 px-4 text-center">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="findings-table-body"
-              class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-200 light:text-slate-800">
-              <tr>
-                <td colspan="7" class="py-10 text-center text-slate-400">
-                  <i class="fa-solid fa-circle-notch spin-active mr-2"></i> Loading findings...
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- ======================================================================= -->
-    <!-- TAB 2: SUBMISSIONS REGISTRY -->
-    <!-- ======================================================================= -->
-    <section id="panel-submissions-registry" class="hidden space-y-4">
-      <div
-        class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition">
-
-        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
-            <h2 class="text-base font-bold text-white light:text-slate-900 tracking-tight">Submissions Registry</h2>
-            <p class="text-xs text-slate-400 light:text-slate-500">Live working dataset (Cleaned Submissions collection)
-            </p>
-          </div>
-
-          <!-- Search and Filter -->
-          <div class="flex items-center space-x-2 w-full md:w-auto">
-            <div class="relative flex-1 md:w-64">
-              <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                <i class="fa-solid fa-magnifying-glass text-xs"></i>
-              </span>
-              <input type="text" id="registry-search" oninput="searchRegistry()" placeholder="Search worker, kiln ID..."
-                class="w-full pl-8 pr-3 py-1.5 bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-lg text-xs text-slate-100 light:text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500">
-            </div>
-
-            <select id="registry-zone-filter" onchange="searchRegistry()"
-              class="px-2.5 py-1.5 bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-lg text-xs text-slate-200 light:text-slate-800 focus:outline-none">
-              <option value="all">All Zones</option>
-              <option value="firing">Firing</option>
-              <option value="unloading">Unloader</option>
-              <option value="cooling">Cooling</option>
-              <option value="loading">Loading</option>
-              <option value="moving">Moving</option>
-            </select>
+            <h1 class="text-lg font-bold text-white light:text-slate-900 tracking-tight leading-snug">Brick Kiln Data
+              Quality Monitor</h1>
+            <p class="text-xs text-slate-400 light:text-slate-500 font-medium">Form: brick_kiln_survey • Project 5</p>
           </div>
         </div>
 
-        <!-- Registry Table -->
-        <div class="overflow-x-auto rounded-lg border border-[#1e293b] light:border-slate-200">
-          <table class="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr
-                class="bg-[#0d1527] light:bg-slate-100 text-slate-400 light:text-slate-600 uppercase tracking-wider font-semibold border-b border-[#1e293b] light:border-slate-200">
-                <th class="py-3 px-3">Date</th>
-                <th class="py-3 px-3">Kiln ID</th>
-                <th class="py-3 px-3">Worker Name</th>
-                <th class="py-3 px-3">Age</th>
-                <th class="py-3 px-3">Zone</th>
-                <th class="py-3 px-3">Worker UID</th>
-                <th class="py-3 px-3">Hours</th>
-                <th class="py-3 px-3">PPE</th>
-                <th class="py-3 px-3">Symptoms</th>
-                <th class="py-3 px-3">Heat / Aid</th>
-                <th class="py-3 px-3">Income</th>
-                <th class="py-3 px-3 text-center">Inspect</th>
-              </tr>
-            </thead>
-            <tbody id="registry-table-body"
-              class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-200 light:text-slate-800">
-              <tr>
-                <td colspan="12" class="py-8 text-center text-slate-400">Loading submissions...</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <!-- Action Buttons & Controls -->
+        <div class="flex items-center space-x-3">
+          <!-- Light / Dark Mode Toggle -->
+          <button onclick="toggleTheme()"
+            class="p-2 text-slate-400 hover:text-white light:hover:text-slate-900 rounded-lg border border-[#1e293b] light:border-slate-300 hover:bg-slate-800/50 light:hover:bg-slate-100 text-sm transition"
+            title="Toggle theme">
+            <i id="theme-icon" class="fa-solid fa-moon"></i>
+          </button>
 
-        <div id="registry-pagination" class="mt-3 flex items-center justify-between text-xs text-slate-400">
-          <span id="registry-count-info">Showing records</span>
-        </div>
+          <!-- Run Validation Button (Yellow lightning bolt, dark pill) -->
+          <button onclick="triggerRunValidation()" id="btn-run-validation"
+            class="flex items-center space-x-2 px-3.5 py-2 rounded-lg bg-[#111a36] hover:bg-slate-800 light:bg-slate-100 light:hover:bg-slate-200 border border-[#1e293b] light:border-slate-300 text-white light:text-slate-800 text-xs font-semibold shadow-sm transition">
+            <i class="fa-solid fa-bolt text-amber-400"></i>
+            <span>Run Validation</span>
+          </button>
 
-      </div>
-    </section>
+          <!-- Sync ODK Now Button (Blue button, refresh icon with spin on click) -->
+          <button onclick="triggerSyncODK()" id="btn-sync-odk"
+            class="flex items-center space-x-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md hover:shadow-blue-500/20 transition">
+            <i id="sync-icon" class="fa-solid fa-rotate"></i>
+            <span>Sync ODK Now</span>
+          </button>
 
-    <!-- ======================================================================= -->
-    <!-- TAB 3: SYNC LOGS -->
-    <!-- ======================================================================= -->
-    <section id="panel-sync-logs" class="hidden space-y-4">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-
-        <!-- ODK Central Connection Card -->
-        <div
-          class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition">
-          <h3 class="text-sm font-bold text-white light:text-slate-900 mb-3 flex items-center space-x-2">
-            <i class="fa-solid fa-server text-indigo-400"></i>
-            <span>ODK Central Configuration</span>
-          </h3>
-          <div class="space-y-2.5 text-xs text-slate-300 light:text-slate-700">
-            <div>
-              <div class="text-[10px] uppercase text-slate-400 font-semibold">ODK Base URL</div>
-              <div id="cfg-odk-url" class="font-mono text-slate-200 light:text-slate-900 truncate">--</div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <div class="text-[10px] uppercase text-slate-400 font-semibold">Project ID</div>
-                <div id="cfg-odk-project" class="font-mono text-slate-200 light:text-slate-900">--</div>
+          <!-- Active User Profile Pill -->
+          <div class="flex items-center space-x-2 pl-2 border-l border-slate-700 light:border-slate-300">
+            <div
+              class="px-3 py-1.5 rounded-lg bg-[#111a36] light:bg-slate-100 border border-[#1e293b] light:border-slate-300 text-xs flex items-center space-x-2">
+              <div id="user-avatar"
+                class="w-5 h-5 rounded-full bg-indigo-500 text-white text-[10px] font-bold flex items-center justify-center">
+                E
               </div>
-              <div>
-                <div class="text-[10px] uppercase text-slate-400 font-semibold">Form ID</div>
-                <div id="cfg-odk-form" class="font-mono text-slate-200 light:text-slate-900">--</div>
-              </div>
+              <span id="header-username" class="font-medium text-slate-200 light:text-slate-800">eayashen</span>
             </div>
-          </div>
-          <div class="mt-4 pt-3 border-t border-slate-700 light:border-slate-200">
-            <button onclick="triggerSyncODK()"
-              class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
-              <i class="fa-solid fa-rotate"></i>
-              <span>Trigger Manual Sync</span>
+
+            <button onclick="handleLogout()"
+              class="p-2 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 text-xs transition"
+              title="Sign out">
+              <i class="fa-solid fa-right-from-bracket"></i>
             </button>
           </div>
         </div>
+      </header>
 
-        <!-- Sync History Table -->
-        <div
-          class="md:col-span-2 bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-bold text-white light:text-slate-900 flex items-center space-x-2">
-              <i class="fa-solid fa-clock-rotate-left text-sky-400"></i>
-              <span>Sync Execution History</span>
-            </h3>
-            <span class="text-xs text-slate-400">Stored in MongoDB (sync_logs)</span>
+      <!-- ========================================================================= -->
+      <!-- MAIN DASHBOARD CONTENT -->
+      <!-- ========================================================================= -->
+      <main class="flex-1 max-w-7xl w-full mx-auto px-6 py-6 space-y-6">
+
+        <!-- 6 METRIC KPI CARDS (Matching Screenshot Top Grid) -->
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+
+          <!-- 1. TOTAL SUBMISSIONS -->
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
+            <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">Total
+              Submissions</div>
+            <div id="kpi-total-submissions"
+              class="text-2xl font-extrabold text-white light:text-slate-900 tracking-tight">
+              --</div>
+            <div class="w-8 h-1 bg-slate-600 rounded-full mt-2"></div>
           </div>
 
-          <div class="overflow-x-auto rounded-lg border border-[#1e293b] light:border-slate-200">
-            <table class="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr
-                  class="bg-[#0d1527] light:bg-slate-100 text-slate-400 light:text-slate-600 uppercase tracking-wider font-semibold border-b border-[#1e293b] light:border-slate-200">
-                  <th class="py-2.5 px-3">Timestamp</th>
-                  <th class="py-2.5 px-3">Status</th>
-                  <th class="py-2.5 px-3">Synced</th>
-                  <th class="py-2.5 px-3">Message</th>
-                  <th class="py-2.5 px-3">Triggered By</th>
-                </tr>
-              </thead>
-              <tbody id="sync-logs-table-body"
-                class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-300 light:text-slate-700">
-                <tr>
-                  <td colspan="5" class="py-6 text-center text-slate-400">Loading sync logs...</td>
-                </tr>
-              </tbody>
-            </table>
+          <!-- 2. VALID RECORDS -->
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
+            <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">Valid
+              Records</div>
+            <div id="kpi-valid-records"
+              class="text-2xl font-extrabold text-emerald-400 light:text-emerald-600 tracking-tight">--</div>
+            <div class="w-8 h-1 bg-emerald-500 rounded-full mt-2"></div>
+          </div>
+
+          <!-- 3. OPEN ERRORS -->
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
+            <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">Open
+              Errors
+            </div>
+            <div id="kpi-open-errors" class="text-2xl font-extrabold text-rose-400 light:text-rose-600 tracking-tight">
+              --
+            </div>
+            <div class="w-8 h-1 bg-rose-500 rounded-full mt-2"></div>
+          </div>
+
+          <!-- 4. DUPLICATE KILN IDS -->
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
+            <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">
+              Duplicate
+              Kiln IDs</div>
+            <div id="kpi-duplicate-kiln-ids"
+              class="text-2xl font-extrabold text-amber-400 light:text-amber-600 tracking-tight">--</div>
+            <div class="w-8 h-1 bg-amber-500 rounded-full mt-2"></div>
+          </div>
+
+          <!-- 5. REVIEW FLAGS -->
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
+            <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">Review
+              Flags</div>
+            <div id="kpi-review-flags"
+              class="text-2xl font-extrabold text-purple-400 light:text-purple-600 tracking-tight">
+              --</div>
+            <div class="w-8 h-1 bg-purple-500 rounded-full mt-2"></div>
+          </div>
+
+          <!-- 6. CORRECTED RECORDS -->
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-4 shadow-sm relative overflow-hidden theme-transition">
+            <div class="text-[11px] font-bold tracking-wider text-slate-400 light:text-slate-500 uppercase mb-2">
+              Corrected
+              Records</div>
+            <div id="kpi-corrected-records"
+              class="text-2xl font-extrabold text-cyan-400 light:text-cyan-600 tracking-tight">--</div>
+            <div class="w-8 h-1 bg-cyan-500 rounded-full mt-2"></div>
           </div>
 
         </div>
 
-      </div>
-    </section>
+        <!-- ======================================================================= -->
+        <!-- NAVIGATION TABS (Matching Screenshot) -->
+        <!-- ======================================================================= -->
+        <div class="border-b border-[#1e293b] light:border-slate-200 flex space-x-6 text-sm theme-transition">
+          <button onclick="switchTab('data-quality')" id="tab-data-quality"
+            class="py-3 px-1 text-slate-400 light:text-slate-600 hover:text-white light:hover:text-slate-900 border-b-2 border-transparent transition flex items-center space-x-2 tab-active">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
+            <span>Data Quality & Errors</span>
+          </button>
 
-    <!-- ======================================================================= -->
-    <!-- TAB 4: EXPORT & R SCRIPT CENTER -->
-    <!-- ======================================================================= -->
-    <section id="panel-export-center" class="hidden space-y-6">
+          <button onclick="switchTab('submissions-registry')" id="tab-submissions-registry"
+            class="py-3 px-1 text-slate-400 light:text-slate-600 hover:text-white light:hover:text-slate-900 border-b-2 border-transparent transition flex items-center space-x-2">
+            <i class="fa-solid fa-table-list"></i>
+            <span>Submissions Registry</span>
+          </button>
 
-      <!-- Export Options Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button onclick="switchTab('sync-logs')" id="tab-sync-logs"
+            class="py-3 px-1 text-slate-400 light:text-slate-600 hover:text-white light:hover:text-slate-900 border-b-2 border-transparent transition flex items-center space-x-2">
+            <i class="fa-solid fa-satellite-dish text-sky-400"></i>
+            <span>Sync Logs</span>
+          </button>
 
-        <!-- Clean Dataset Export -->
-        <div
-          class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition flex flex-col justify-between">
-          <div>
-            <div
-              class="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg mb-3">
-              <i class="fa-solid fa-file-csv"></i>
-            </div>
-            <h3 class="text-sm font-bold text-white light:text-slate-900 mb-1">Clean Dataset (CSV)</h3>
-            <p class="text-xs text-slate-400 light:text-slate-600 mb-4">Download Cleaned dataset</p>
-          </div>
-          <button onclick="downloadCleanCSV()"
-            class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
-            <i class="fa-solid fa-download"></i>
-            <span>Download Clean CSV</span>
+          <button onclick="switchTab('export-center')" id="tab-export-center"
+            class="py-3 px-1 text-slate-400 light:text-slate-600 hover:text-white light:hover:text-slate-900 border-b-2 border-transparent transition flex items-center space-x-2">
+            <i class="fa-solid fa-box-archive text-amber-600"></i>
+            <span>Export & R Script Center</span>
           </button>
         </div>
 
-        <!-- Audit Changelog Export -->
-        <div
-          class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition flex flex-col justify-between">
-          <div>
-            <div
-              class="w-10 h-10 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-lg mb-3">
-              <i class="fa-solid fa-list-check"></i>
-            </div>
-            <h3 class="text-sm font-bold text-white light:text-slate-900 mb-1">Old New Rows (CSV)</h3>
-            <p class="text-xs text-slate-400 light:text-slate-600 mb-4">Download Old and New Rows tracking</p>
-          </div>
-          <button onclick="downloadAuditCSV()"
-            class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
-            <i class="fa-solid fa-download"></i>
-            <span>Download Audit CSV</span>
-          </button>
-        </div>
+        <!-- ======================================================================= -->
+        <!-- TAB 1: DATA QUALITY & ERRORS (Default View matching Screenshot) -->
+        <!-- ======================================================================= -->
+        <section id="panel-data-quality" class="space-y-4">
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition">
 
-        <!-- Standalone R Script -->
-        <div
-          class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition flex flex-col justify-between">
-          <div>
-            <div
-              class="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg mb-3">
-              <i class="fa-brands fa-r-project"></i>
-            </div>
-            <h3 class="text-sm font-bold text-white light:text-slate-900 mb-1">R Cleaning Script (.R)</h3>
-            <p class="text-xs text-slate-400 light:text-slate-600 mb-4">Download R script</p>
-          </div>
-          <button onclick="downloadRScript()"
-            class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
-            <i class="fa-solid fa-download"></i>
-            <span>Download clean_script.R</span>
-          </button>
-        </div>
-
-      </div>
-
-
-
-
-      </div>
-
-    </section>
-
-  </main>
-
-  <!-- ========================================================================= -->
-  <!-- REVIEW MODAL (Matching Requirements: Approve As-is or Edit & Correct) -->
-  <!-- ========================================================================= -->
-  <dialog id="review-modal"
-    class="bg-transparent backdrop:bg-black/80 backdrop:backdrop-blur-sm p-0 rounded-2xl max-w-lg w-full outline-none shadow-2xl">
-    <div class="bg-[#111a36] border border-[#1e293b] rounded-2xl p-6 text-slate-100 relative">
-
-      <!-- Close Button -->
-      <button onclick="closeReviewModal()"
-        class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
-        <i class="fa-solid fa-xmark text-base"></i>
-      </button>
-
-      <!-- Modal Header -->
-      <div class="flex items-center space-x-3 mb-4">
-        <div id="modal-severity-icon"
-          class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-lg">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-        </div>
-        <div>
-          <h3 class="text-base font-bold text-white tracking-tight">Data Quality Review</h3>
-          <p id="modal-instance-badge" class="text-xs font-mono text-slate-400 truncate max-w-xs">uuid:--</p>
-        </div>
-      </div>
-
-      <!-- Finding Detected Issue Summary -->
-      <div class="mb-4 p-3 bg-[#0d1527] border border-slate-700/80 rounded-lg text-xs space-y-1">
-        <div class="flex justify-between items-center text-slate-400">
-          <span>Target Field: <strong id="modal-target-field" class="text-indigo-400 font-mono">--</strong></span>
-          <span id="modal-severity-badge"
-            class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-500/20 text-rose-300">ERROR</span>
-        </div>
-        <div class="text-slate-300 font-medium pt-1" id="modal-detected-issue">--</div>
-        <div class="text-slate-400 text-[11px] pt-1 border-t border-slate-800 flex justify-between">
-          <span>Current Value: <strong id="modal-current-val" class="text-amber-400 font-mono">--</strong></span>
-          <span id="modal-worker-context" class="text-slate-300">Worker: --</span>
-        </div>
-      </div>
-
-      <!-- Action Choice Tabs -->
-      <div class="grid grid-cols-2 gap-2 mb-4 p-1 bg-[#0b1329] rounded-lg text-xs font-medium border border-slate-800">
-        <button type="button" onclick="setReviewTab('approve')" id="review-tab-approve-btn"
-          class="py-2 rounded-md bg-indigo-600 text-white transition text-center flex items-center justify-center space-x-1.5 shadow-sm">
-          <i class="fa-solid fa-check"></i>
-          <span>Approve As-is</span>
-        </button>
-        <button type="button" onclick="setReviewTab('edit')" id="review-tab-edit-btn"
-          class="py-2 rounded-md text-slate-400 hover:text-white transition text-center flex items-center justify-center space-x-1.5">
-          <i class="fa-solid fa-pen-to-square"></i>
-          <span>Edit & Correct</span>
-        </button>
-      </div>
-
-      <!-- Action Form -->
-      <form id="review-action-form" onsubmit="handleReviewActionSubmit(event)" class="space-y-4">
-
-        <!-- Approve As-is Panel -->
-        <div id="review-panel-approve" class="space-y-3">
-          <div class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs text-emerald-300">
-            <i class="fa-solid fa-circle-check mr-1.5"></i>
-            <span>Leaves existing data unchanged, marks the finding verified, and increments Corrected Records.</span>
-          </div>
-
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Approval Note (Optional)</label>
-            <input type="text" id="approve-note"
-              class="w-full px-3 py-2 bg-[#0b1329] border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
-              placeholder="e.g. Verified with field supervisor, value is confirmed.">
-          </div>
-        </div>
-
-        <!-- Edit & Correct Panel -->
-        <div id="review-panel-edit" class="space-y-3.5 hidden">
-
-          <!-- Cascading Kiln ID Synchronizer Section -->
-          <div id="cascading-kiln-container"
-            class="space-y-3 p-3.5 bg-[#0b1329] light:bg-slate-100 border border-indigo-500/40 rounded-xl">
-            <div class="flex items-center justify-between border-b border-slate-800 light:border-slate-300 pb-2">
-              <div class="flex items-center space-x-2">
-                <span
-                  class="w-6 h-6 rounded-md bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
-                  <i class="fa-solid fa-link"></i>
-                </span>
-                <span class="text-xs font-bold text-slate-200 light:text-slate-800">Cascading ID Synchronization</span>
-              </div>
-              <span
-                class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 light:text-indigo-700 border border-indigo-500/20 font-semibold">
-                Auto-Linked
+            <!-- Header row of the card -->
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+              <h2 class="text-base font-bold text-white light:text-slate-900 tracking-tight">Validation Findings &
+                Flagged
+                Errors</h2>
+              <span class="text-xs text-slate-400 light:text-slate-500 font-medium flex items-center space-x-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span>Showing active flags</span>
               </span>
             </div>
 
-            <!-- Option A: Component-Level Fields -->
-            <div>
-              <div class="flex items-center justify-between mb-1.5">
-                <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option A: Edit Component
-                  Fields</span>
-                <span class="text-[10px] text-slate-400">Updates IDs dynamically</span>
-              </div>
-              <div class="grid grid-cols-3 gap-2">
-                <div>
-                  <label class="block text-[10px] font-mono text-slate-400 mb-0.5">Division (1 digit)</label>
-                  <input type="text" id="cascade-division" maxlength="1"
-                    class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
-                    placeholder="1" oninput="onCascadeComponentChange()">
-                </div>
-                <div>
-                  <label class="block text-[10px] font-mono text-slate-400 mb-0.5">District (2 digits)</label>
-                  <input type="text" id="cascade-district" maxlength="2"
-                    class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
-                    placeholder="02" oninput="onCascadeComponentChange()">
-                </div>
-                <div>
-                  <label class="block text-[10px] font-mono text-slate-400 mb-0.5">Kiln No. (3 digits)</label>
-                  <input type="text" id="cascade-kiln-number" maxlength="3"
-                    class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
-                    placeholder="006" oninput="onCascadeComponentChange()">
-                </div>
-              </div>
+            <!-- Filter Bar matching screenshot: Filter: All Findings | Errors Only | Duplicate Kiln IDs | Review Flags | Warnings -->
+            <div class="flex flex-wrap items-center gap-2 mb-4 text-xs">
+              <span class="text-slate-400 light:text-slate-600 font-semibold mr-1">Filter:</span>
+
+              <button onclick="filterFindings('all')" id="filter-btn-all"
+                class="px-3 py-1.5 rounded-full bg-indigo-600 text-white font-medium shadow-sm transition">
+                All Findings
+              </button>
+
+              <button onclick="filterFindings('errors')" id="filter-btn-errors"
+                class="px-3 py-1.5 rounded-full bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:border-rose-500/50 flex items-center space-x-1.5 transition">
+                <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                <span>Errors Only</span>
+              </button>
+
+              <button onclick="filterFindings('duplicates')" id="filter-btn-duplicates"
+                class="px-3 py-1.5 rounded-full bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:border-amber-500/50 flex items-center space-x-1.5 transition">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span>Duplicate Kiln IDs</span>
+              </button>
+
+              <button onclick="filterFindings('reviews')" id="filter-btn-reviews"
+                class="px-3 py-1.5 rounded-full bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:border-purple-500/50 flex items-center space-x-1.5 transition">
+                <span class="w-2 h-2 rounded-full bg-purple-500"></span>
+                <span>Review Flags</span>
+              </button>
+
+              <button onclick="filterFindings('warnings')" id="filter-btn-warnings"
+                class="px-3 py-1.5 rounded-full bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:border-yellow-500/50 flex items-center space-x-1.5 transition">
+                <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+                <span>Warnings</span>
+              </button>
             </div>
 
-            <!-- Option B: Direct Full Kiln ID Edit with Auto-Breakdown -->
-            <div>
-              <div class="flex items-center justify-between mb-1">
-                <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option B: Full Kiln Unique
-                  ID</span>
-                <span id="cascade-id-status" class="text-[10px] font-mono text-slate-400">6 digits</span>
-              </div>
-              <div class="relative">
-                <input type="text" id="cascade-kiln-id" maxlength="6"
-                  class="w-full px-3 py-2 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs font-mono font-bold text-amber-400 light:text-amber-600 tracking-wider focus:outline-none focus:border-amber-500"
-                  placeholder="102006" oninput="onCascadeFullIdChange()">
-              </div>
-              <div id="cascade-uniqueness-feedback" class="mt-1 text-[10px] font-mono"></div>
+            <!-- Findings Responsive Table -->
+            <div class="overflow-x-auto rounded-lg border border-[#1e293b] light:border-slate-200">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr
+                    class="bg-[#0d1527] light:bg-slate-100 text-slate-400 light:text-slate-600 uppercase tracking-wider font-semibold border-b border-[#1e293b] light:border-slate-200">
+                    <th class="py-3 px-4">Severity</th>
+                    <th class="py-3 px-4">Submission By</th>
+                    <th class="py-3 px-4">Field</th>
+                    <th class="py-3 px-4">Original Value</th>
+                    <th class="py-3 px-4">Detected Issue</th>
+                    <th class="py-3 px-4">Status</th>
+                    <th class="py-3 px-4 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="findings-table-body"
+                  class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-200 light:text-slate-800">
+                  <tr>
+                    <td colspan="7" class="py-10 text-center text-slate-400">
+                      <i class="fa-solid fa-circle-notch spin-active mr-2"></i> Loading findings...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
-            <!-- Dependent Worker Unique ID Preview -->
-            <div
-              class="p-2.5 bg-[#070d1e] light:bg-slate-200/70 border border-slate-800 light:border-slate-300 rounded-lg flex items-center justify-between">
+          </div>
+        </section>
+
+        <!-- ======================================================================= -->
+        <!-- TAB 2: SUBMISSIONS REGISTRY -->
+        <!-- ======================================================================= -->
+        <section id="panel-submissions-registry" class="hidden space-y-4">
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition">
+
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
               <div>
-                <div class="text-[10px] uppercase font-semibold tracking-wider text-slate-400 light:text-slate-600">
-                  Interrelated Worker Unique ID</div>
-                <div id="cascade-worker-id-preview"
-                  class="font-mono text-xs font-bold text-cyan-400 light:text-cyan-700 mt-0.5">
-                  --
+                <h2 class="text-base font-bold text-white light:text-slate-900 tracking-tight">Submissions Registry</h2>
+                <p class="text-xs text-slate-400 light:text-slate-500">Live working dataset (Cleaned Submissions
+                  collection)
+                </p>
+              </div>
+
+              <!-- Search and Filter -->
+              <div class="flex items-center space-x-2 w-full md:w-auto">
+                <div class="relative flex-1 md:w-64">
+                  <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                  </span>
+                  <input type="text" id="registry-search" oninput="searchRegistry()"
+                    placeholder="Search worker, kiln ID..."
+                    class="w-full pl-8 pr-3 py-1.5 bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-lg text-xs text-slate-100 light:text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500">
+                </div>
+
+                <select id="registry-zone-filter" onchange="searchRegistry()"
+                  class="px-2.5 py-1.5 bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-lg text-xs text-slate-200 light:text-slate-800 focus:outline-none">
+                  <option value="all">All Zones</option>
+                  <option value="firing">Firing</option>
+                  <option value="unloader">Unloader</option>
+                  <option value="cooling">Cooling</option>
+                  <option value="moving">Moving</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Registry Table -->
+            <div class="overflow-x-auto rounded-lg border border-[#1e293b] light:border-slate-200">
+              <table class="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr
+                    class="bg-[#0d1527] light:bg-slate-100 text-slate-400 light:text-slate-600 uppercase tracking-wider font-semibold border-b border-[#1e293b] light:border-slate-200">
+                    <th class="py-3 px-3">Date</th>
+                    <th class="py-3 px-3">Kiln ID</th>
+                    <th class="py-3 px-3">Worker Name</th>
+                    <th class="py-3 px-3">Age</th>
+                    <th class="py-3 px-3">Zone</th>
+                    <th class="py-3 px-3">Worker UID</th>
+                    <th class="py-3 px-3">Hours</th>
+                    <th class="py-3 px-3">PPE</th>
+                    <th class="py-3 px-3">Symptoms</th>
+                    <th class="py-3 px-3">Heat / Aid</th>
+                    <th class="py-3 px-3">Income</th>
+                    <th class="py-3 px-3 text-center">Inspect</th>
+                  </tr>
+                </thead>
+                <tbody id="registry-table-body"
+                  class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-200 light:text-slate-800">
+                  <tr>
+                    <td colspan="12" class="py-8 text-center text-slate-400">Loading submissions...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div id="registry-pagination" class="mt-3 flex items-center justify-between text-xs text-slate-400">
+              <span id="registry-count-info">Showing records</span>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ======================================================================= -->
+        <!-- TAB 3: SYNC LOGS -->
+        <!-- ======================================================================= -->
+        <section id="panel-sync-logs" class="hidden space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            <!-- ODK Central Connection Card -->
+            <div
+              class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition">
+              <h3 class="text-sm font-bold text-white light:text-slate-900 mb-3 flex items-center space-x-2">
+                <i class="fa-solid fa-server text-indigo-400"></i>
+                <span>ODK Central Configuration</span>
+              </h3>
+              <div class="space-y-2.5 text-xs text-slate-300 light:text-slate-700">
+                <div>
+                  <div class="text-[10px] uppercase text-slate-400 font-semibold">ODK Base URL</div>
+                  <div id="cfg-odk-url" class="font-mono text-slate-200 light:text-slate-900 truncate">--</div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                  <div>
+                    <div class="text-[10px] uppercase text-slate-400 font-semibold">Project ID</div>
+                    <div id="cfg-odk-project" class="font-mono text-slate-200 light:text-slate-900">--</div>
+                  </div>
+                  <div>
+                    <div class="text-[10px] uppercase text-slate-400 font-semibold">Form ID</div>
+                    <div id="cfg-odk-form" class="font-mono text-slate-200 light:text-slate-900">--</div>
+                  </div>
                 </div>
               </div>
-              <span id="cascade-worker-suffix-badge"
-                class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 light:text-purple-700 border border-purple-500/30">
-                Zone: --
-              </span>
+              <div class="mt-4 pt-3 border-t border-slate-700 light:border-slate-200">
+                <button onclick="triggerSyncODK()"
+                  class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
+                  <i class="fa-solid fa-rotate"></i>
+                  <span>Trigger Manual Sync</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Sync History Table -->
+            <div
+              class="md:col-span-2 bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-bold text-white light:text-slate-900 flex items-center space-x-2">
+                  <i class="fa-solid fa-clock-rotate-left text-sky-400"></i>
+                  <span>Sync Execution History</span>
+                </h3>
+                <span class="text-xs text-slate-400">Stored in MongoDB (sync_logs)</span>
+              </div>
+
+              <div class="overflow-x-auto rounded-lg border border-[#1e293b] light:border-slate-200">
+                <table class="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr
+                      class="bg-[#0d1527] light:bg-slate-100 text-slate-400 light:text-slate-600 uppercase tracking-wider font-semibold border-b border-[#1e293b] light:border-slate-200">
+                      <th class="py-2.5 px-3">Timestamp</th>
+                      <th class="py-2.5 px-3">Status</th>
+                      <th class="py-2.5 px-3">Synced</th>
+                      <th class="py-2.5 px-3">Message</th>
+                      <th class="py-2.5 px-3">Triggered By</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sync-logs-table-body"
+                    class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-300 light:text-slate-700">
+                    <tr>
+                      <td colspan="5" class="py-6 text-center text-slate-400">Loading sync logs...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+
+          </div>
+        </section>
+
+        <!-- ======================================================================= -->
+        <!-- TAB 4: EXPORT & R SCRIPT CENTER -->
+        <!-- ======================================================================= -->
+        <section id="panel-export-center" class="hidden space-y-6">
+
+          <!-- Export Options Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+            <!-- Clean Dataset Export -->
+            <div
+              class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition flex flex-col justify-between">
+              <div>
+                <div
+                  class="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg mb-3">
+                  <i class="fa-solid fa-file-csv"></i>
+                </div>
+                <h3 class="text-sm font-bold text-white light:text-slate-900 mb-1">Clean Dataset (CSV)</h3>
+                <p class="text-xs text-slate-400 light:text-slate-600 mb-4">Download Cleaned dataset</p>
+              </div>
+              <button onclick="downloadCleanCSV()"
+                class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
+                <i class="fa-solid fa-download"></i>
+                <span>Download Clean CSV</span>
+              </button>
+            </div>
+
+            <!-- Audit Changelog Export -->
+            <div
+              class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition flex flex-col justify-between">
+              <div>
+                <div
+                  class="w-10 h-10 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-lg mb-3">
+                  <i class="fa-solid fa-list-check"></i>
+                </div>
+                <h3 class="text-sm font-bold text-white light:text-slate-900 mb-1">Old New Rows (CSV)</h3>
+                <p class="text-xs text-slate-400 light:text-slate-600 mb-4">Download Old and New Rows tracking</p>
+              </div>
+              <button onclick="downloadAuditCSV()"
+                class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
+                <i class="fa-solid fa-download"></i>
+                <span>Download Audit CSV</span>
+              </button>
+            </div>
+
+            <!-- Standalone R Script -->
+            <div
+              class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition flex flex-col justify-between">
+              <div>
+                <div
+                  class="w-10 h-10 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center text-lg mb-3">
+                  <i class="fa-brands fa-r-project"></i>
+                </div>
+                <h3 class="text-sm font-bold text-white light:text-slate-900 mb-1">R Cleaning Script (.R)</h3>
+                <p class="text-xs text-slate-400 light:text-slate-600 mb-4">Download R script</p>
+              </div>
+              <button onclick="downloadRScript()"
+                class="w-full py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
+                <i class="fa-solid fa-download"></i>
+                <span>Download clean_script.R</span>
+              </button>
+            </div>
+
+          </div>
+
+
+
+
+    </div>
+
+    </section>
+
+    </main>
+
+    <!-- ========================================================================= -->
+    <!-- REVIEW MODAL (Matching Requirements: Approve As-is or Edit & Correct) -->
+    <!-- ========================================================================= -->
+    <dialog id="review-modal"
+      class="bg-transparent backdrop:bg-black/80 backdrop:backdrop-blur-sm p-0 rounded-2xl max-w-lg w-full outline-none shadow-2xl">
+      <div class="bg-[#111a36] border border-[#1e293b] rounded-2xl p-6 text-slate-100 relative">
+
+        <!-- Close Button -->
+        <button onclick="closeReviewModal()"
+          class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
+
+        <!-- Modal Header -->
+        <div class="flex items-center space-x-3 mb-4">
+          <div id="modal-severity-icon"
+            class="w-10 h-10 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-white tracking-tight">Data Quality Review</h3>
+            <p id="modal-instance-badge" class="text-xs font-mono text-slate-400 truncate max-w-xs">uuid:--</p>
+          </div>
+        </div>
+
+        <!-- Finding Detected Issue Summary -->
+        <div class="mb-4 p-3 bg-[#0d1527] border border-slate-700/80 rounded-lg text-xs space-y-1">
+          <div class="flex justify-between items-center text-slate-400">
+            <span>Target Field: <strong id="modal-target-field" class="text-indigo-400 font-mono">--</strong></span>
+            <span id="modal-severity-badge"
+              class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-rose-500/20 text-rose-300">ERROR</span>
+          </div>
+          <div class="text-slate-300 font-medium pt-1" id="modal-detected-issue">--</div>
+          <div class="text-slate-400 text-[11px] pt-1 border-t border-slate-800 flex justify-between">
+            <span>Current Value: <strong id="modal-current-val" class="text-amber-400 font-mono">--</strong></span>
+            <span id="modal-worker-context" class="text-slate-300">Worker: --</span>
+          </div>
+        </div>
+
+        <!-- Action Choice Tabs -->
+        <div
+          class="grid grid-cols-2 gap-2 mb-4 p-1 bg-[#0b1329] rounded-lg text-xs font-medium border border-slate-800">
+          <button type="button" onclick="setReviewTab('approve')" id="review-tab-approve-btn"
+            class="py-2 rounded-md bg-indigo-600 text-white transition text-center flex items-center justify-center space-x-1.5 shadow-sm">
+            <i class="fa-solid fa-check"></i>
+            <span>Approve As-is</span>
+          </button>
+          <button type="button" onclick="setReviewTab('edit')" id="review-tab-edit-btn"
+            class="py-2 rounded-md text-slate-400 hover:text-white transition text-center flex items-center justify-center space-x-1.5">
+            <i class="fa-solid fa-pen-to-square"></i>
+            <span>Edit & Correct</span>
+          </button>
+        </div>
+
+        <!-- Action Form -->
+        <form id="review-action-form" onsubmit="handleReviewActionSubmit(event)" class="space-y-4">
+
+          <!-- Approve As-is Panel -->
+          <div id="review-panel-approve" class="space-y-3">
+            <div class="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-xs text-emerald-300">
+              <i class="fa-solid fa-circle-check mr-1.5"></i>
+              <span>Leaves existing data unchanged, marks the finding verified, and increments Corrected Records.</span>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Approval Note (Optional)</label>
+              <input type="text" id="approve-note"
+                class="w-full px-3 py-2 bg-[#0b1329] border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+                placeholder="e.g. Verified with field supervisor, value is confirmed.">
             </div>
           </div>
 
-          <!-- Generic Single Field Input (for age, hours, etc.) -->
-          <div id="generic-field-container">
-            <label class="block text-xs font-medium text-slate-300 mb-1">Corrected Value for <span
-                id="edit-field-name-label" class="text-indigo-400 font-mono">--</span></label>
-            <input type="text" id="edit-field-input"
-              class="w-full px-3 py-2 bg-[#0b1329] border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
-              placeholder="Enter corrected value">
+          <!-- Edit & Correct Panel -->
+          <div id="review-panel-edit" class="space-y-3.5 hidden">
+
+            <!-- Cascading Kiln ID Synchronizer Section -->
+            <div id="cascading-kiln-container"
+              class="space-y-3 p-3.5 bg-[#0b1329] light:bg-slate-100 border border-indigo-500/40 rounded-xl">
+              <div class="flex items-center justify-between border-b border-slate-800 light:border-slate-300 pb-2">
+                <div class="flex items-center space-x-2">
+                  <span
+                    class="w-6 h-6 rounded-md bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-link"></i>
+                  </span>
+                  <span class="text-xs font-bold text-slate-200 light:text-slate-800">Cascading ID
+                    Synchronization</span>
+                </div>
+                <span
+                  class="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 light:text-indigo-700 border border-indigo-500/20 font-semibold">
+                  Auto-Linked
+                </span>
+              </div>
+
+              <!-- Option A: Component-Level Fields -->
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option A: Edit Component
+                    Fields</span>
+                  <span class="text-[10px] text-slate-400">Updates IDs dynamically</span>
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                  <div>
+                    <label class="block text-[10px] font-mono text-slate-400 mb-0.5">Division (1 digit)</label>
+                    <input type="text" id="cascade-division" maxlength="1"
+                      class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
+                      placeholder="1" oninput="onCascadeComponentChange()">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-mono text-slate-400 mb-0.5">District (2 digits)</label>
+                    <input type="text" id="cascade-district" maxlength="2"
+                      class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
+                      placeholder="02" oninput="onCascadeComponentChange()">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-mono text-slate-400 mb-0.5">Kiln No. (3 digits)</label>
+                    <input type="text" id="cascade-kiln-number" maxlength="3"
+                      class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
+                      placeholder="006" oninput="onCascadeComponentChange()">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Option B: Direct Full Kiln ID Edit with Auto-Breakdown -->
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option B: Full Kiln Unique
+                    ID</span>
+                  <span id="cascade-id-status" class="text-[10px] font-mono text-slate-400">6 digits</span>
+                </div>
+                <div class="relative">
+                  <input type="text" id="cascade-kiln-id" maxlength="6"
+                    class="w-full px-3 py-2 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs font-mono font-bold text-amber-400 light:text-amber-600 tracking-wider focus:outline-none focus:border-amber-500"
+                    placeholder="102006" oninput="onCascadeFullIdChange()">
+                </div>
+                <div id="cascade-uniqueness-feedback" class="mt-1 text-[10px] font-mono"></div>
+              </div>
+
+              <!-- Dependent Worker Unique ID Preview -->
+              <div
+                class="p-2.5 bg-[#070d1e] light:bg-slate-200/70 border border-slate-800 light:border-slate-300 rounded-lg flex items-center justify-between">
+                <div>
+                  <div class="text-[10px] uppercase font-semibold tracking-wider text-slate-400 light:text-slate-600">
+                    Interrelated Worker Unique ID</div>
+                  <div id="cascade-worker-id-preview"
+                    class="font-mono text-xs font-bold text-cyan-400 light:text-cyan-700 mt-0.5">
+                    --
+                  </div>
+                </div>
+                <span id="cascade-worker-suffix-badge"
+                  class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 light:text-purple-700 border border-purple-500/30">
+                  Zone: --
+                </span>
+              </div>
+            </div>
+
+            <!-- Generic Single Field Input (for age, hours, etc.) -->
+            <div id="generic-field-container">
+              <label class="block text-xs font-medium text-slate-300 mb-1">Corrected Value for <span
+                  id="edit-field-name-label" class="text-indigo-400 font-mono">--</span></label>
+              <input type="text" id="edit-field-input"
+                class="w-full px-3 py-2 bg-[#0b1329] border border-slate-700 rounded-lg text-xs text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
+                placeholder="Enter corrected value">
+            </div>
+
+            <!-- Audit Reason Input (Mandatory for transparency) -->
+            <div>
+              <label class="block text-xs font-medium text-slate-300 mb-1">Audit Correction Reason</label>
+              <input type="text" id="edit-reason-input"
+                class="w-full px-3 py-2 bg-[#0b1329] border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                placeholder="e.g. Corrected duplicate kiln number to 007 after field verification.">
+            </div>
           </div>
 
-          <!-- Audit Reason Input (Mandatory for transparency) -->
-          <div>
-            <label class="block text-xs font-medium text-slate-300 mb-1">Audit Correction Reason</label>
-            <input type="text" id="edit-reason-input"
-              class="w-full px-3 py-2 bg-[#0b1329] border border-slate-700 rounded-lg text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500"
-              placeholder="e.g. Corrected duplicate kiln number to 007 after field verification.">
+          <!-- Submit Button -->
+          <div class="pt-2 flex items-center justify-end space-x-2">
+            <button type="button" onclick="closeReviewModal()"
+              class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition">
+              Cancel
+            </button>
+
+            <button type="submit" id="btn-submit-review"
+              class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-md transition flex items-center space-x-1.5">
+              <i class="fa-solid fa-check"></i>
+              <span id="btn-submit-review-text">Confirm Approval</span>
+            </button>
           </div>
-        </div>
 
-        <!-- Submit Button -->
-        <div class="pt-2 flex items-center justify-end space-x-2">
-          <button type="button" onclick="closeReviewModal()"
-            class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium rounded-lg transition">
-            Cancel
-          </button>
+        </form>
 
-          <button type="submit" id="btn-submit-review"
-            class="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-md transition flex items-center space-x-1.5">
-            <i class="fa-solid fa-check"></i>
-            <span id="btn-submit-review-text">Confirm Approval</span>
-          </button>
-        </div>
-
-      </form>
-
-    </div>
-  </dialog>
-
-  <!-- ========================================================================= -->
-  <!-- INSPECT RECORD MODAL -->
-  <!-- ========================================================================= -->
-  <dialog id="inspect-modal"
-    class="bg-transparent backdrop:bg-black/80 backdrop:backdrop-blur-sm p-0 rounded-2xl max-w-2xl w-full outline-none shadow-2xl">
-    <div class="bg-[#111a36] border border-[#1e293b] rounded-2xl p-6 text-slate-100 relative">
-      <button onclick="document.getElementById('inspect-modal').close()"
-        class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
-        <i class="fa-solid fa-xmark text-base"></i>
-      </button>
-
-      <h3 class="text-base font-bold text-white mb-1">Submission Record Details</h3>
-      <p id="inspect-modal-sub" class="text-xs font-mono text-slate-400 mb-4">uuid:--</p>
-
-      <div class="max-h-96 overflow-y-auto pr-2 space-y-2" id="inspect-fields-container">
-        <!-- Key value pairs loaded dynamically -->
       </div>
-    </div>
-  </dialog>
+    </dialog>
 
-  <!-- ========================================================================= -->
-  <!-- JAVASCRIPT APPLICATION LOGIC -->
-  <!-- ========================================================================= -->
-  <script>
-    // State management
-    const state = {
-      user: null,
-      token: localStorage.getItem('bk_token') || null,
-      currentFilter: 'all',
-      findings: [],
-      submissions: [],
-      selectedFinding: null,
-      reviewAction: 'approve'
-    };
+    <!-- ========================================================================= -->
+    <!-- INSPECT RECORD MODAL -->
+    <!-- ========================================================================= -->
+    <dialog id="inspect-modal"
+      class="bg-transparent backdrop:bg-black/80 backdrop:backdrop-blur-sm p-0 rounded-2xl max-w-2xl w-full outline-none shadow-2xl">
+      <div class="bg-[#111a36] border border-[#1e293b] rounded-2xl p-6 text-slate-100 relative">
+        <button onclick="document.getElementById('inspect-modal').close()"
+          class="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition">
+          <i class="fa-solid fa-xmark text-base"></i>
+        </button>
 
-    // Initialize application on page load
-    document.addEventListener('DOMContentLoaded', async () => {
-      initTheme();
-      checkAuth();
-    });
+        <h3 class="text-base font-bold text-white mb-1">Submission Record Details</h3>
+        <p id="inspect-modal-sub" class="text-xs font-mono text-slate-400 mb-4">uuid:--</p>
 
-    // Theme Management
-    function initTheme() {
-      const saved = localStorage.getItem('bk_theme') || 'dark';
-      applyTheme(saved);
-    }
+        <div class="max-h-96 overflow-y-auto pr-2 space-y-2" id="inspect-fields-container">
+          <!-- Key value pairs loaded dynamically -->
+        </div>
+      </div>
+    </dialog>
 
-    function toggleTheme() {
-      const isDark = document.documentElement.classList.contains('dark');
-      applyTheme(isDark ? 'light' : 'dark');
-    }
+    <!-- ========================================================================= -->
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <!-- ========================================================================= -->
+    <script>
+      // State management
+      const state = {
+        user: null,
+        token: localStorage.getItem('bk_token') || null,
+        currentFilter: 'all',
+        findings: [],
+        submissions: [],
+        selectedFinding: null,
+        reviewAction: 'approve'
+      };
 
-    function applyTheme(theme) {
-      const icon = document.getElementById('theme-icon');
-      if (theme === 'light') {
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
-        if (icon) icon.className = 'fa-solid fa-sun text-amber-500';
-        localStorage.setItem('bk_theme', 'light');
-      } else {
-        document.documentElement.classList.remove('light');
-        document.documentElement.classList.add('dark');
-        if (icon) icon.className = 'fa-solid fa-moon text-slate-400';
-        localStorage.setItem('bk_theme', 'dark');
+      // Initialize application on page load
+      document.addEventListener('DOMContentLoaded', async () => {
+        initTheme();
+        checkAuth();
+      });
+
+      // Theme Management
+      function initTheme() {
+        const saved = localStorage.getItem('bk_theme') || 'dark';
+        applyTheme(saved);
       }
-    }
 
-    // Authentication Checks
-    async function checkAuth() {
-      if (!state.token) {
-        showLoginModal();
-        return;
+      function toggleTheme() {
+        const isDark = document.documentElement.classList.contains('dark');
+        applyTheme(isDark ? 'light' : 'dark');
       }
-      try {
-        const resp = await fetch('/api/me', {
-          headers: { 'Authorization': `Bearer ${state.token}` }
-        });
-        if (resp.ok) {
-          const user = await resp.json();
-          setAuthenticatedUser(user);
-          hideLoginModal();
-          await loadDashboardData();
+
+      function applyTheme(theme) {
+        const icon = document.getElementById('theme-icon');
+        if (theme === 'light') {
+          document.documentElement.classList.remove('dark');
+          document.documentElement.classList.add('light');
+          if (icon) icon.className = 'fa-solid fa-sun text-amber-500';
+          localStorage.setItem('bk_theme', 'light');
         } else {
+          document.documentElement.classList.remove('light');
+          document.documentElement.classList.add('dark');
+          if (icon) icon.className = 'fa-solid fa-moon text-slate-400';
+          localStorage.setItem('bk_theme', 'dark');
+        }
+      }
+
+      // Authentication Checks
+      async function checkAuth() {
+        if (!state.token) {
+          showLoginModal();
+          return;
+        }
+        try {
+          const resp = await fetch('/api/me', {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+          if (resp.ok) {
+            const user = await resp.json();
+            setAuthenticatedUser(user);
+            hideLoginModal();
+            await loadDashboardData();
+          } else {
+            showLoginModal();
+          }
+        } catch (e) {
           showLoginModal();
         }
-      } catch (e) {
-        showLoginModal();
       }
-    }
 
-    function showLoginModal() {
-      document.getElementById('login-modal').classList.remove('hidden');
-    }
-
-    function hideLoginModal() {
-      document.getElementById('login-modal').classList.add('hidden');
-    }
-
-    function setAuthenticatedUser(user) {
-      state.user = user;
-      document.getElementById('header-username').textContent = user.username;
-      const avatar = document.getElementById('user-avatar');
-      avatar.textContent = user.username.charAt(0).toUpperCase();
-      if (user.username === 'eayashen') {
-        avatar.className = 'w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center';
-      } else {
-        avatar.className = 'w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center';
+      function showLoginModal() {
+        document.getElementById('login-modal').classList.remove('hidden');
       }
-    }
 
-    async function handleLoginSubmit(e) {
-      e.preventDefault();
-      const u = document.getElementById('login-username').value;
-      const p = document.getElementById('login-password').value;
-      await performLogin(u, p);
-    }
+      function hideLoginModal() {
+        document.getElementById('login-modal').classList.add('hidden');
+      }
 
-    async function quickLogin(u, p) {
-      document.getElementById('login-username').value = u;
-      document.getElementById('login-password').value = p;
-      await performLogin(u, p);
-    }
-
-    async function performLogin(username, password) {
-      const errEl = document.getElementById('login-error');
-      const errTxt = document.getElementById('login-error-text');
-      errEl.classList.add('hidden');
-
-      const btn = document.getElementById('login-btn');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-circle-notch spin-active"></i> <span>Authenticating...</span>';
-
-      try {
-        const resp = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
-        });
-
-        const data = await resp.json();
-        if (resp.ok) {
-          state.token = data.token;
-          localStorage.setItem('bk_token', data.token);
-          setAuthenticatedUser(data);
-          hideLoginModal();
-          showToast('Welcome back, ' + data.display_name, 'success');
-          await loadDashboardData();
+      function setAuthenticatedUser(user) {
+        state.user = user;
+        document.getElementById('header-username').textContent = user.username;
+        const avatar = document.getElementById('user-avatar');
+        avatar.textContent = user.username.charAt(0).toUpperCase();
+        if (user.username === 'eayashen') {
+          avatar.className = 'w-5 h-5 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center';
         } else {
-          errTxt.textContent = data.detail || 'Invalid username or password';
-          errEl.classList.remove('hidden');
+          avatar.className = 'w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center';
         }
-      } catch (e) {
-        errTxt.textContent = 'Server connection failed';
-        errEl.classList.remove('hidden');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<span>Sign In to Dashboard</span> <i class="fa-solid fa-arrow-right text-xs"></i>';
       }
-    }
 
-    function handleLogout() {
-      state.token = null;
-      state.user = null;
-      localStorage.removeItem('bk_token');
-      document.cookie = 'token=; Max-Age=0; path=/;';
-      showLoginModal();
-      showToast('Logged out successfully', 'info');
-    }
+      async function handleLoginSubmit(e) {
+        e.preventDefault();
+        const u = document.getElementById('login-username').value;
+        const p = document.getElementById('login-password').value;
+        await performLogin(u, p);
+      }
 
-    // Load All Dashboard Data
-    async function loadDashboardData() {
-      await Promise.all([
-        triggerRunValidation(false),
-        loadSubmissionsRegistry(),
-        loadSyncLogs()
-      ]);
-    }
+      async function quickLogin(u, p) {
+        document.getElementById('login-username').value = u;
+        document.getElementById('login-password').value = p;
+        await performLogin(u, p);
+      }
 
-    // Trigger Run Validation
-    async function triggerRunValidation(showNotification = true) {
-      const btn = document.getElementById('btn-run-validation');
-      if (btn) btn.innerHTML = '<i class="fa-solid fa-bolt text-amber-400 spin-active"></i> <span>Validating...</span>';
+      async function performLogin(username, password) {
+        const errEl = document.getElementById('login-error');
+        const errTxt = document.getElementById('login-error-text');
+        errEl.classList.add('hidden');
 
-      try {
-        const resp = await fetch('/api/run-validation', {
-          headers: { 'Authorization': `Bearer ${state.token}` }
-        });
-        if (resp.ok) {
-          const res = await resp.json();
-          renderKPIs(res.kpi);
-          state.findings = res.findings || [];
-          renderFindingsTable();
-          if (showNotification) {
-            showToast(`Validation finished. ${res.findings.length} active findings evaluated.`, 'info');
+        const btn = document.getElementById('login-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch spin-active"></i> <span>Authenticating...</span>';
+
+        try {
+          const resp = await fetch('/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+          });
+
+          const data = await resp.json();
+          if (resp.ok) {
+            state.token = data.token;
+            localStorage.setItem('bk_token', data.token);
+            setAuthenticatedUser(data);
+            hideLoginModal();
+            showToast('Welcome back, ' + data.display_name, 'success');
+            await loadDashboardData();
+          } else {
+            errTxt.textContent = data.detail || 'Invalid username or password';
+            errEl.classList.remove('hidden');
           }
+        } catch (e) {
+          errTxt.textContent = 'Server connection failed';
+          errEl.classList.remove('hidden');
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '<span>Sign In to Dashboard</span> <i class="fa-solid fa-arrow-right text-xs"></i>';
         }
-      } catch (err) {
-        console.error('Validation error:', err);
-      } finally {
-        if (btn) btn.innerHTML = '<i class="fa-solid fa-bolt text-amber-400"></i> <span>Run Validation</span>';
-      }
-    }
-
-    // Update KPI Numbers
-    function renderKPIs(kpi) {
-      if (!kpi) return;
-      document.getElementById('kpi-total-submissions').textContent = kpi.total_submissions ?? '--';
-      document.getElementById('kpi-valid-records').textContent = kpi.valid_records ?? '--';
-      document.getElementById('kpi-open-errors').textContent = kpi.open_errors ?? '--';
-      document.getElementById('kpi-duplicate-kiln-ids').textContent = kpi.duplicate_kiln_ids ?? '--';
-      document.getElementById('kpi-review-flags').textContent = kpi.review_flags ?? '--';
-      document.getElementById('kpi-corrected-records').textContent = kpi.corrected_records ?? '--';
-    }
-
-    // Filter Findings
-    function filterFindings(category) {
-      state.currentFilter = category;
-      const categories = ['all', 'errors', 'duplicates', 'reviews', 'warnings'];
-      categories.forEach(cat => {
-        const b = document.getElementById(`filter-btn-${cat}`);
-        if (!b) return;
-        if (cat === category) {
-          b.className = 'px-3 py-1.5 rounded-full bg-indigo-600 text-white font-medium shadow-sm transition';
-        } else {
-          b.className = 'px-3 py-1.5 rounded-full bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:border-indigo-500/50 flex items-center space-x-1.5 transition';
-        }
-      });
-      renderFindingsTable();
-    }
-
-    // Render Findings Table
-    function renderFindingsTable() {
-      const tbody = document.getElementById('findings-table-body');
-      let filtered = state.findings;
-
-      if (state.currentFilter !== 'all') {
-        filtered = filtered.filter(f => f.category === state.currentFilter);
       }
 
-      if (filtered.length === 0) {
-        tbody.innerHTML = `
+      function handleLogout() {
+        state.token = null;
+        state.user = null;
+        localStorage.removeItem('bk_token');
+        document.cookie = 'token=; Max-Age=0; path=/;';
+        showLoginModal();
+        showToast('Logged out successfully', 'info');
+      }
+
+      // Load All Dashboard Data
+      async function loadDashboardData() {
+        await Promise.all([
+          triggerRunValidation(false),
+          loadSubmissionsRegistry(),
+          loadSyncLogs()
+        ]);
+      }
+
+      // Trigger Run Validation
+      async function triggerRunValidation(showNotification = true) {
+        const btn = document.getElementById('btn-run-validation');
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-bolt text-amber-400 spin-active"></i> <span>Validating...</span>';
+
+        try {
+          const resp = await fetch('/api/run-validation', {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+          if (resp.ok) {
+            const res = await resp.json();
+            renderKPIs(res.kpi);
+            state.findings = res.findings || [];
+            renderFindingsTable();
+            if (showNotification) {
+              showToast(`Validation finished. ${res.findings.length} active findings evaluated.`, 'info');
+            }
+          }
+        } catch (err) {
+          console.error('Validation error:', err);
+        } finally {
+          if (btn) btn.innerHTML = '<i class="fa-solid fa-bolt text-amber-400"></i> <span>Run Validation</span>';
+        }
+      }
+
+      // Update KPI Numbers
+      function renderKPIs(kpi) {
+        if (!kpi) return;
+        document.getElementById('kpi-total-submissions').textContent = kpi.total_submissions ?? '--';
+        document.getElementById('kpi-valid-records').textContent = kpi.valid_records ?? '--';
+        document.getElementById('kpi-open-errors').textContent = kpi.open_errors ?? '--';
+        document.getElementById('kpi-duplicate-kiln-ids').textContent = kpi.duplicate_kiln_ids ?? '--';
+        document.getElementById('kpi-review-flags').textContent = kpi.review_flags ?? '--';
+        document.getElementById('kpi-corrected-records').textContent = kpi.corrected_records ?? '--';
+      }
+
+      // Filter Findings
+      function filterFindings(category) {
+        state.currentFilter = category;
+        const categories = ['all', 'errors', 'duplicates', 'reviews', 'warnings'];
+        categories.forEach(cat => {
+          const b = document.getElementById(`filter-btn-${cat}`);
+          if (!b) return;
+          if (cat === category) {
+            b.className = 'px-3 py-1.5 rounded-full bg-indigo-600 text-white font-medium shadow-sm transition';
+          } else {
+            b.className = 'px-3 py-1.5 rounded-full bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-slate-300 light:text-slate-700 hover:border-indigo-500/50 flex items-center space-x-1.5 transition';
+          }
+        });
+        renderFindingsTable();
+      }
+
+      // Render Findings Table
+      function renderFindingsTable() {
+        const tbody = document.getElementById('findings-table-body');
+        let filtered = state.findings;
+
+        if (state.currentFilter !== 'all') {
+          filtered = filtered.filter(f => f.category === state.currentFilter);
+        }
+
+        if (filtered.length === 0) {
+          tbody.innerHTML = `
           <tr>
             <td colspan="7" class="py-12 text-center text-slate-400">
               <div class="flex flex-col items-center justify-center space-y-2">
@@ -1094,27 +1106,27 @@
             </td>
           </tr>
         `;
-        return;
-      }
-
-      tbody.innerHTML = filtered.map(item => {
-        let badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
-        let icon = 'fa-circle-xmark';
-        if (item.severity === 'DUPLICATE_KILN_ID') {
-          badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
-          icon = 'fa-copy';
-        } else if (item.severity === 'REVIEW_FLAG') {
-          badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
-          icon = 'fa-flag';
-        } else if (item.severity === 'WARNING') {
-          badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-          icon = 'fa-triangle-exclamation';
+          return;
         }
 
-        const safeFindingId = encodeURIComponent(item.finding_id);
-        const shortInstance = item.instanceID.replace('uuid:', '').slice(0, 14) + '...';
+        tbody.innerHTML = filtered.map(item => {
+          let badgeColor = 'bg-rose-500/20 text-rose-300 border border-rose-500/30';
+          let icon = 'fa-circle-xmark';
+          if (item.severity === 'DUPLICATE_KILN_ID') {
+            badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/30';
+            icon = 'fa-copy';
+          } else if (item.severity === 'REVIEW_FLAG') {
+            badgeColor = 'bg-purple-500/20 text-purple-300 border border-purple-500/30';
+            icon = 'fa-flag';
+          } else if (item.severity === 'WARNING') {
+            badgeColor = 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
+            icon = 'fa-triangle-exclamation';
+          }
 
-        return `
+          const safeFindingId = encodeURIComponent(item.finding_id);
+          const shortInstance = item.instanceID.replace('uuid:', '').slice(0, 14) + '...';
+
+          return `
           <tr class="hover:bg-slate-800/40 light:hover:bg-slate-50 transition border-b border-[#1e293b] light:border-slate-200">
             <td class="py-3 px-4 whitespace-nowrap">
               <span class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold ${badgeColor}">
@@ -1150,374 +1162,374 @@
             </td>
           </tr>
         `;
-      }).join('');
-    }
-
-    // Helper to determine if finding involves Kiln ID / interrelated cascading fields
-    function isKilnRelatedFinding(item) {
-      if (!item) return false;
-      return (
-        item.field === 'kiln_unique_id' ||
-        item.field === 'division' ||
-        item.field === 'district' ||
-        item.field === 'kiln_number' ||
-        item.rule_key === 'rule_duplicate_kiln_id' ||
-        item.rule_key === 'rule_kiln_id_mismatch' ||
-        item.rule_key === 'rule_worker_id_mismatch'
-      );
-    }
-
-    // Open Review Modal
-    function openReviewModal(encodedFindingId) {
-      const findingId = decodeURIComponent(encodedFindingId);
-      const item = state.findings.find(f => f.finding_id === findingId);
-      if (!item) return;
-
-      state.selectedFinding = item;
-      document.getElementById('modal-instance-badge').textContent = item.instanceID;
-      document.getElementById('modal-target-field').textContent = item.field;
-      document.getElementById('modal-detected-issue').textContent = item.detected_issue;
-      document.getElementById('modal-current-val').textContent = item.original_value;
-      const interviewerDisplay = item.interviewer && item.interviewer !== '-' ? item.interviewer : 'N/A';
-      const workerDisplay = item.worker_name && item.worker_name !== '-' ? item.worker_name : 'N/A';
-      document.getElementById('modal-worker-context').textContent = `Interviewer: ${interviewerDisplay} • Worker: ${workerDisplay}`;
-
-      const badge = document.getElementById('modal-severity-badge');
-      badge.textContent = item.severity;
-
-      // Determine existing values from record or finding
-      const existingRec = state.submissions ? state.submissions.find(s => (s['meta-instanceID'] || s.instance_id || s.instanceId || s.KEY) === item.instanceID) : null;
-
-      let suffix = 'F';
-      const rawWorkerUid = (existingRec && existingRec.worker_unique_id) || item.worker_unique_id || '';
-      if (rawWorkerUid && rawWorkerUid.includes('_')) {
-        suffix = rawWorkerUid.split('_').pop() || 'F';
-      } else {
-        const jz = (existingRec && existingRec.job_zone) || item.job_zone || '';
-        if (jz) suffix = jz[0].toUpperCase();
+        }).join('');
       }
-      state.currentJobZoneSuffix = suffix;
 
-      const isKiln = isKilnRelatedFinding(item);
-      const cascadeContainer = document.getElementById('cascading-kiln-container');
-      const genericContainer = document.getElementById('generic-field-container');
+      // Helper to determine if finding involves Kiln ID / interrelated cascading fields
+      function isKilnRelatedFinding(item) {
+        if (!item) return false;
+        return (
+          item.field === 'kiln_unique_id' ||
+          item.field === 'division' ||
+          item.field === 'district' ||
+          item.field === 'kiln_number' ||
+          item.rule_key === 'rule_duplicate_kiln_id' ||
+          item.rule_key === 'rule_kiln_id_mismatch' ||
+          item.rule_key === 'rule_worker_id_mismatch'
+        );
+      }
 
-      if (isKiln) {
-        cascadeContainer.classList.remove('hidden');
-        genericContainer.classList.add('hidden');
+      // Open Review Modal
+      function openReviewModal(encodedFindingId) {
+        const findingId = decodeURIComponent(encodedFindingId);
+        const item = state.findings.find(f => f.finding_id === findingId);
+        if (!item) return;
 
-        // Extract division, district, kiln_number
-        let div = (item.division !== undefined && item.division !== null) ? String(item.division).trim() : '';
-        let dist = (item.district !== undefined && item.district !== null) ? String(item.district).trim().padStart(2, '0') : '';
-        let kiln = (item.kiln_number !== undefined && item.kiln_number !== null) ? String(item.kiln_number).trim().padStart(3, '0') : '';
-        let fullId = item.original_value && item.original_value.length === 6 ? item.original_value : (item.kiln_unique_id || '');
+        state.selectedFinding = item;
+        document.getElementById('modal-instance-badge').textContent = item.instanceID;
+        document.getElementById('modal-target-field').textContent = item.field;
+        document.getElementById('modal-detected-issue').textContent = item.detected_issue;
+        document.getElementById('modal-current-val').textContent = item.original_value;
+        const interviewerDisplay = item.interviewer && item.interviewer !== '-' ? item.interviewer : 'N/A';
+        const workerDisplay = item.worker_name && item.worker_name !== '-' ? item.worker_name : 'N/A';
+        document.getElementById('modal-worker-context').textContent = `Interviewer: ${interviewerDisplay} • Worker: ${workerDisplay}`;
 
-        if (!div && existingRec && existingRec.division) div = String(existingRec.division).trim();
-        if (!dist && existingRec && existingRec.district) dist = String(existingRec.district).trim().padStart(2, '0');
-        if (!kiln && existingRec && existingRec.kiln_number) kiln = String(existingRec.kiln_number).trim().padStart(3, '0');
+        const badge = document.getElementById('modal-severity-badge');
+        badge.textContent = item.severity;
 
-        if ((!div || !dist || !kiln) && fullId && fullId.length === 6 && /^\d{6}$/.test(fullId)) {
-          div = fullId[0];
-          dist = fullId.substring(1, 3);
-          kiln = fullId.substring(3, 6);
+        // Determine existing values from record or finding
+        const existingRec = state.submissions ? state.submissions.find(s => (s['meta-instanceID'] || s.instance_id || s.instanceId || s.KEY) === item.instanceID) : null;
+
+        let suffix = 'F';
+        const rawWorkerUid = (existingRec && existingRec.worker_unique_id) || item.worker_unique_id || '';
+        if (rawWorkerUid && rawWorkerUid.includes('_')) {
+          suffix = rawWorkerUid.split('_').pop() || 'F';
+        } else {
+          const jz = (existingRec && existingRec.job_zone) || item.job_zone || '';
+          if (jz) suffix = jz[0].toUpperCase();
         }
+        state.currentJobZoneSuffix = suffix;
 
-        if (!fullId && div && dist && kiln) {
-          fullId = `${div}${dist.padStart(2, '0')}${kiln.padStart(3, '0')}`;
-        }
+        const isKiln = isKilnRelatedFinding(item);
+        const cascadeContainer = document.getElementById('cascading-kiln-container');
+        const genericContainer = document.getElementById('generic-field-container');
 
-        document.getElementById('cascade-division').value = div || '1';
-        document.getElementById('cascade-district').value = dist || '02';
-        document.getElementById('cascade-kiln-number').value = kiln || '006';
-        document.getElementById('cascade-kiln-id').value = fullId || `${div || '1'}${dist || '02'}${kiln || '006'}`;
-        document.getElementById('cascade-worker-suffix-badge').textContent = `Zone Suffix: _${suffix}`;
-        document.getElementById('cascade-worker-id-preview').textContent = `${document.getElementById('cascade-kiln-id').value}_${suffix}`;
-
-        checkKilnIdUniqueness(document.getElementById('cascade-kiln-id').value, item.instanceID);
-      } else {
-        cascadeContainer.classList.add('hidden');
-        genericContainer.classList.remove('hidden');
-
-        document.getElementById('edit-field-name-label').textContent = item.field;
-        document.getElementById('edit-field-input').value = item.original_value;
-      }
-
-      document.getElementById('approve-note').value = '';
-      document.getElementById('edit-reason-input').value = isKiln
-        ? 'Kiln ID and worker ID corrected to resolve duplicate and maintain structural integrity.'
-        : 'Value verified and corrected by reviewer.';
-
-      // Default to approve tab
-      setReviewTab('approve');
-
-      const modal = document.getElementById('review-modal');
-      modal.showModal();
-    }
-
-    // Cascade Event Handlers
-    function onCascadeComponentChange() {
-      const divInput = document.getElementById('cascade-division');
-      const distInput = document.getElementById('cascade-district');
-      const kilnInput = document.getElementById('cascade-kiln-number');
-
-      // Keep only digits
-      divInput.value = divInput.value.replace(/\D/g, '').slice(0, 1);
-      distInput.value = distInput.value.replace(/\D/g, '').slice(0, 2);
-      kilnInput.value = kilnInput.value.replace(/\D/g, '').slice(0, 3);
-
-      const div = divInput.value.trim() || '1';
-      const dist = distInput.value.trim().padStart(2, '0');
-      const kiln = kilnInput.value.trim().padStart(3, '0');
-
-      const fullId = `${div}${dist}${kiln}`;
-      const kilnIdInput = document.getElementById('cascade-kiln-id');
-      kilnIdInput.value = fullId;
-
-      const suffix = state.currentJobZoneSuffix || 'F';
-      document.getElementById('cascade-worker-id-preview').textContent = `${fullId}_${suffix}`;
-
-      const statusEl = document.getElementById('cascade-id-status');
-      statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 6 digits</span>';
-
-      checkKilnIdUniqueness(fullId, state.selectedFinding ? state.selectedFinding.instanceID : null);
-    }
-
-    function onCascadeFullIdChange() {
-      const kilnIdInput = document.getElementById('cascade-kiln-id');
-      kilnIdInput.value = kilnIdInput.value.replace(/\D/g, '').slice(0, 6);
-      const val = kilnIdInput.value.trim();
-
-      const suffix = state.currentJobZoneSuffix || 'F';
-      const statusEl = document.getElementById('cascade-id-status');
-
-      if (val.length === 6) {
-        document.getElementById('cascade-division').value = val[0];
-        document.getElementById('cascade-district').value = val.substring(1, 3);
-        document.getElementById('cascade-kiln-number').value = val.substring(3, 6);
-        document.getElementById('cascade-worker-id-preview').textContent = `${val}_${suffix}`;
-        statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 6 digits</span>';
-        checkKilnIdUniqueness(val, state.selectedFinding ? state.selectedFinding.instanceID : null);
-      } else {
-        document.getElementById('cascade-worker-id-preview').textContent = `${val || '--'}_${suffix}`;
-        statusEl.innerHTML = `<span class="text-amber-400 font-semibold">${val.length}/6 digits</span>`;
-        const fb = document.getElementById('cascade-uniqueness-feedback');
-        if (fb) fb.innerHTML = '<span class="text-slate-400">Enter complete 6 digits to auto-breakdown</span>';
-      }
-    }
-
-    function checkKilnIdUniqueness(fullId, currentInstId) {
-      const fb = document.getElementById('cascade-uniqueness-feedback');
-      if (!fb) return;
-      if (!fullId || fullId.length !== 6) {
-        fb.innerHTML = '';
-        return;
-      }
-
-      if (!state.submissions || state.submissions.length === 0) {
-        fb.innerHTML = '<span class="text-emerald-400 flex items-center space-x-1"><i class="fa-solid fa-circle-check"></i> <span>Ready to apply</span></span>';
-        return;
-      }
-
-      const collisions = state.submissions.filter(s => {
-        const k = s.kiln_unique_id || (s.data && s.data.kiln_unique_id);
-        const inst = s['meta-instanceID'] || s.instance_id || s.instanceId || s.KEY;
-        return String(k).trim() === String(fullId).trim() && inst !== currentInstId;
-      });
-
-      if (collisions.length > 0) {
-        fb.innerHTML = `<span class="text-amber-400 flex items-center space-x-1.5 font-medium"><i class="fa-solid fa-triangle-exclamation"></i> <span>Warning: Kiln ID ${fullId} is already in use by ${collisions.length} other record(s)</span></span>`;
-      } else {
-        fb.innerHTML = `<span class="text-emerald-400 flex items-center space-x-1.5 font-medium"><i class="fa-solid fa-circle-check"></i> <span>Unique Kiln ID! Resolves duplicate collision.</span></span>`;
-      }
-    }
-
-    function closeReviewModal() {
-      const modal = document.getElementById('review-modal');
-      modal.close();
-    }
-
-    // Switch between Approve As-is and Edit & Correct tabs
-    function setReviewTab(action) {
-      state.reviewAction = action;
-      const approveBtn = document.getElementById('review-tab-approve-btn');
-      const editBtn = document.getElementById('review-tab-edit-btn');
-      const approvePanel = document.getElementById('review-panel-approve');
-      const editPanel = document.getElementById('review-panel-edit');
-      const submitText = document.getElementById('btn-submit-review-text');
-
-      if (action === 'approve') {
-        approveBtn.className = 'py-2 rounded-md bg-indigo-600 text-white transition text-center flex items-center justify-center space-x-1.5 shadow-sm';
-        editBtn.className = 'py-2 rounded-md text-slate-400 hover:text-white transition text-center flex items-center justify-center space-x-1.5';
-        approvePanel.classList.remove('hidden');
-        editPanel.classList.add('hidden');
-        submitText.textContent = 'Approve As-is';
-      } else {
-        editBtn.className = 'py-2 rounded-md bg-indigo-600 text-white transition text-center flex items-center justify-center space-x-1.5 shadow-sm';
-        approveBtn.className = 'py-2 rounded-md text-slate-400 hover:text-white transition text-center flex items-center justify-center space-x-1.5';
-        approvePanel.classList.add('hidden');
-        editPanel.classList.remove('hidden');
-        submitText.textContent = 'Save Correction & Resolve';
-      }
-    }
-
-    // Submit Review Action
-    async function handleReviewActionSubmit(e) {
-      e.preventDefault();
-      if (!state.selectedFinding) return;
-
-      const btn = document.getElementById('btn-submit-review');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fa-solid fa-circle-notch spin-active"></i> <span>Saving...</span>';
-
-      const item = state.selectedFinding;
-      const isApprove = state.reviewAction === 'approve';
-      const isKiln = isKilnRelatedFinding(item);
-
-      let newFieldVal = item.original_value;
-      let cascadingUpdates = null;
-
-      if (!isApprove) {
         if (isKiln) {
-          const divVal = parseInt(document.getElementById('cascade-division').value, 10);
-          const distVal = document.getElementById('cascade-district').value.trim().padStart(2, '0');
-          const kilnVal = document.getElementById('cascade-kiln-number').value.trim().padStart(3, '0');
-          const kilnIdVal = document.getElementById('cascade-kiln-id').value.trim();
+          cascadeContainer.classList.remove('hidden');
+          genericContainer.classList.add('hidden');
 
-          if (kilnIdVal.length !== 6 || !/^\d{6}$/.test(kilnIdVal)) {
-            showToast('Please provide a complete 6-digit Kiln ID (e.g. 102007)', 'error');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Save Correction & Resolve</span>';
-            return;
+          // Extract division, district, kiln_number
+          let div = (item.division !== undefined && item.division !== null) ? String(item.division).trim() : '';
+          let dist = (item.district !== undefined && item.district !== null) ? String(item.district).trim().padStart(2, '0') : '';
+          let kiln = (item.kiln_number !== undefined && item.kiln_number !== null) ? String(item.kiln_number).trim().padStart(3, '0') : '';
+          let fullId = item.original_value && item.original_value.length === 6 ? item.original_value : (item.kiln_unique_id || '');
+
+          if (!div && existingRec && existingRec.division) div = String(existingRec.division).trim();
+          if (!dist && existingRec && existingRec.district) dist = String(existingRec.district).trim().padStart(2, '0');
+          if (!kiln && existingRec && existingRec.kiln_number) kiln = String(existingRec.kiln_number).trim().padStart(3, '0');
+
+          if ((!div || !dist || !kiln) && fullId && fullId.length === 6 && /^\d{6}$/.test(fullId)) {
+            div = fullId[0];
+            dist = fullId.substring(1, 3);
+            kiln = fullId.substring(3, 6);
           }
 
-          const workerIdVal = `${kilnIdVal}_${state.currentJobZoneSuffix || 'F'}`;
-          newFieldVal = kilnIdVal;
-          cascadingUpdates = {
-            division: isNaN(divVal) ? 1 : divVal,
-            district: distVal,
-            kiln_number: kilnVal,
-            kiln_unique_id: kilnIdVal,
-            worker_unique_id: workerIdVal
-          };
+          if (!fullId && div && dist && kiln) {
+            fullId = `${div}${dist.padStart(2, '0')}${kiln.padStart(3, '0')}`;
+          }
+
+          document.getElementById('cascade-division').value = div || '1';
+          document.getElementById('cascade-district').value = dist || '02';
+          document.getElementById('cascade-kiln-number').value = kiln || '006';
+          document.getElementById('cascade-kiln-id').value = fullId || `${div || '1'}${dist || '02'}${kiln || '006'}`;
+          document.getElementById('cascade-worker-suffix-badge').textContent = `Zone Suffix: _${suffix}`;
+          document.getElementById('cascade-worker-id-preview').textContent = `${document.getElementById('cascade-kiln-id').value}_${suffix}`;
+
+          checkKilnIdUniqueness(document.getElementById('cascade-kiln-id').value, item.instanceID);
         } else {
-          newFieldVal = document.getElementById('edit-field-input').value;
+          cascadeContainer.classList.add('hidden');
+          genericContainer.classList.remove('hidden');
+
+          document.getElementById('edit-field-name-label').textContent = item.field;
+          document.getElementById('edit-field-input').value = item.original_value;
+        }
+
+        document.getElementById('approve-note').value = '';
+        document.getElementById('edit-reason-input').value = isKiln
+          ? 'Kiln ID and worker ID corrected to resolve duplicate and maintain structural integrity.'
+          : 'Value verified and corrected by reviewer.';
+
+        // Default to approve tab
+        setReviewTab('approve');
+
+        const modal = document.getElementById('review-modal');
+        modal.showModal();
+      }
+
+      // Cascade Event Handlers
+      function onCascadeComponentChange() {
+        const divInput = document.getElementById('cascade-division');
+        const distInput = document.getElementById('cascade-district');
+        const kilnInput = document.getElementById('cascade-kiln-number');
+
+        // Keep only digits
+        divInput.value = divInput.value.replace(/\D/g, '').slice(0, 1);
+        distInput.value = distInput.value.replace(/\D/g, '').slice(0, 2);
+        kilnInput.value = kilnInput.value.replace(/\D/g, '').slice(0, 3);
+
+        const div = divInput.value.trim() || '1';
+        const dist = distInput.value.trim().padStart(2, '0');
+        const kiln = kilnInput.value.trim().padStart(3, '0');
+
+        const fullId = `${div}${dist}${kiln}`;
+        const kilnIdInput = document.getElementById('cascade-kiln-id');
+        kilnIdInput.value = fullId;
+
+        const suffix = state.currentJobZoneSuffix || 'F';
+        document.getElementById('cascade-worker-id-preview').textContent = `${fullId}_${suffix}`;
+
+        const statusEl = document.getElementById('cascade-id-status');
+        statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 6 digits</span>';
+
+        checkKilnIdUniqueness(fullId, state.selectedFinding ? state.selectedFinding.instanceID : null);
+      }
+
+      function onCascadeFullIdChange() {
+        const kilnIdInput = document.getElementById('cascade-kiln-id');
+        kilnIdInput.value = kilnIdInput.value.replace(/\D/g, '').slice(0, 6);
+        const val = kilnIdInput.value.trim();
+
+        const suffix = state.currentJobZoneSuffix || 'F';
+        const statusEl = document.getElementById('cascade-id-status');
+
+        if (val.length === 6) {
+          document.getElementById('cascade-division').value = val[0];
+          document.getElementById('cascade-district').value = val.substring(1, 3);
+          document.getElementById('cascade-kiln-number').value = val.substring(3, 6);
+          document.getElementById('cascade-worker-id-preview').textContent = `${val}_${suffix}`;
+          statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 6 digits</span>';
+          checkKilnIdUniqueness(val, state.selectedFinding ? state.selectedFinding.instanceID : null);
+        } else {
+          document.getElementById('cascade-worker-id-preview').textContent = `${val || '--'}_${suffix}`;
+          statusEl.innerHTML = `<span class="text-amber-400 font-semibold">${val.length}/6 digits</span>`;
+          const fb = document.getElementById('cascade-uniqueness-feedback');
+          if (fb) fb.innerHTML = '<span class="text-slate-400">Enter complete 6 digits to auto-breakdown</span>';
         }
       }
 
-      const payload = {
-        instanceID: item.instanceID,
-        finding_id: item.finding_id,
-        rule_key: item.rule_key,
-        action: isApprove ? 'approve' : 'edit',
-        field: isKiln ? 'kiln_unique_id' : item.field,
-        new_value: isApprove ? item.original_value : newFieldVal,
-        cascading_updates: cascadingUpdates,
-        reason: isApprove
-          ? (document.getElementById('approve-note').value || 'Approved as-is by reviewer.')
-          : (document.getElementById('edit-reason-input').value || 'Corrected by reviewer.')
-      };
-
-      try {
-        const resp = await fetch('/api/resolve-finding', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${state.token}`
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (resp.ok) {
-          closeReviewModal();
-          showToast(isApprove ? 'Record approved as-is!' : 'Kiln & Worker IDs synchronized and finding resolved!', 'success');
-
-          // Re-evaluate validation immediately
-          await triggerRunValidation(false);
-          await loadSubmissionsRegistry();
-        } else {
-          const errData = await resp.json();
-          showToast(errData.detail || 'Failed to submit review', 'error');
+      function checkKilnIdUniqueness(fullId, currentInstId) {
+        const fb = document.getElementById('cascade-uniqueness-feedback');
+        if (!fb) return;
+        if (!fullId || fullId.length !== 6) {
+          fb.innerHTML = '';
+          return;
         }
-      } catch (err) {
-        showToast('Error connecting to backend server', 'error');
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fa-solid fa-check"></i> <span id="btn-submit-review-text">' + (isApprove ? 'Approve As-is' : 'Save Correction & Resolve') + '</span>';
-      }
-    }
 
-
-    // Sync ODK Central
-    async function triggerSyncODK() {
-      const syncBtn = document.getElementById('btn-sync-odk');
-      const syncIcon = document.getElementById('sync-icon');
-      syncBtn.disabled = true;
-      syncIcon.classList.add('spin-active');
-
-      showToast('Connecting to ODK Central API...', 'info');
-
-      try {
-        const resp = await fetch('/api/sync-odk', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${state.token}` }
-        });
-
-        const data = await resp.json();
-        if (resp.ok) {
-          showToast(data.message || `ODK Sync complete: ${data.records_synced} records`, 'success');
-          await triggerRunValidation(false);
-          await loadSubmissionsRegistry();
-          await loadSyncLogs();
-        } else {
-          showToast(data.detail || 'ODK Sync encountered an error', 'error');
+        if (!state.submissions || state.submissions.length === 0) {
+          fb.innerHTML = '<span class="text-emerald-400 flex items-center space-x-1"><i class="fa-solid fa-circle-check"></i> <span>Ready to apply</span></span>';
+          return;
         }
-      } catch (e) {
-        showToast('ODK server network timeout or error', 'error');
-      } finally {
-        syncBtn.disabled = false;
-        syncIcon.classList.remove('spin-active');
-      }
-    }
 
-    // Submissions Registry
-    async function loadSubmissionsRegistry() {
-      try {
-        const search = document.getElementById('registry-search') ? document.getElementById('registry-search').value : '';
-        const zone = document.getElementById('registry-zone-filter') ? document.getElementById('registry-zone-filter').value : 'all';
-
-        const q = new URLSearchParams({ search, job_zone: zone, limit: 100 });
-        const resp = await fetch(`/api/submissions?${q.toString()}`, {
-          headers: { 'Authorization': `Bearer ${state.token}` }
+        const collisions = state.submissions.filter(s => {
+          const k = s.kiln_unique_id || (s.data && s.data.kiln_unique_id);
+          const inst = s['meta-instanceID'] || s.instance_id || s.instanceId || s.KEY;
+          return String(k).trim() === String(fullId).trim() && inst !== currentInstId;
         });
 
-        if (resp.ok) {
+        if (collisions.length > 0) {
+          fb.innerHTML = `<span class="text-amber-400 flex items-center space-x-1.5 font-medium"><i class="fa-solid fa-triangle-exclamation"></i> <span>Warning: Kiln ID ${fullId} is already in use by ${collisions.length} other record(s)</span></span>`;
+        } else {
+          fb.innerHTML = `<span class="text-emerald-400 flex items-center space-x-1.5 font-medium"><i class="fa-solid fa-circle-check"></i> <span>Unique Kiln ID! Resolves duplicate collision.</span></span>`;
+        }
+      }
+
+      function closeReviewModal() {
+        const modal = document.getElementById('review-modal');
+        modal.close();
+      }
+
+      // Switch between Approve As-is and Edit & Correct tabs
+      function setReviewTab(action) {
+        state.reviewAction = action;
+        const approveBtn = document.getElementById('review-tab-approve-btn');
+        const editBtn = document.getElementById('review-tab-edit-btn');
+        const approvePanel = document.getElementById('review-panel-approve');
+        const editPanel = document.getElementById('review-panel-edit');
+        const submitText = document.getElementById('btn-submit-review-text');
+
+        if (action === 'approve') {
+          approveBtn.className = 'py-2 rounded-md bg-indigo-600 text-white transition text-center flex items-center justify-center space-x-1.5 shadow-sm';
+          editBtn.className = 'py-2 rounded-md text-slate-400 hover:text-white transition text-center flex items-center justify-center space-x-1.5';
+          approvePanel.classList.remove('hidden');
+          editPanel.classList.add('hidden');
+          submitText.textContent = 'Approve As-is';
+        } else {
+          editBtn.className = 'py-2 rounded-md bg-indigo-600 text-white transition text-center flex items-center justify-center space-x-1.5 shadow-sm';
+          approveBtn.className = 'py-2 rounded-md text-slate-400 hover:text-white transition text-center flex items-center justify-center space-x-1.5';
+          approvePanel.classList.add('hidden');
+          editPanel.classList.remove('hidden');
+          submitText.textContent = 'Save Correction & Resolve';
+        }
+      }
+
+      // Submit Review Action
+      async function handleReviewActionSubmit(e) {
+        e.preventDefault();
+        if (!state.selectedFinding) return;
+
+        const btn = document.getElementById('btn-submit-review');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch spin-active"></i> <span>Saving...</span>';
+
+        const item = state.selectedFinding;
+        const isApprove = state.reviewAction === 'approve';
+        const isKiln = isKilnRelatedFinding(item);
+
+        let newFieldVal = item.original_value;
+        let cascadingUpdates = null;
+
+        if (!isApprove) {
+          if (isKiln) {
+            const divVal = parseInt(document.getElementById('cascade-division').value, 10);
+            const distVal = document.getElementById('cascade-district').value.trim().padStart(2, '0');
+            const kilnVal = document.getElementById('cascade-kiln-number').value.trim().padStart(3, '0');
+            const kilnIdVal = document.getElementById('cascade-kiln-id').value.trim();
+
+            if (kilnIdVal.length !== 6 || !/^\d{6}$/.test(kilnIdVal)) {
+              showToast('Please provide a complete 6-digit Kiln ID (e.g. 102007)', 'error');
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Save Correction & Resolve</span>';
+              return;
+            }
+
+            const workerIdVal = `${kilnIdVal}_${state.currentJobZoneSuffix || 'F'}`;
+            newFieldVal = kilnIdVal;
+            cascadingUpdates = {
+              division: isNaN(divVal) ? 1 : divVal,
+              district: distVal,
+              kiln_number: kilnVal,
+              kiln_unique_id: kilnIdVal,
+              worker_unique_id: workerIdVal
+            };
+          } else {
+            newFieldVal = document.getElementById('edit-field-input').value;
+          }
+        }
+
+        const payload = {
+          instanceID: item.instanceID,
+          finding_id: item.finding_id,
+          rule_key: item.rule_key,
+          action: isApprove ? 'approve' : 'edit',
+          field: isKiln ? 'kiln_unique_id' : item.field,
+          new_value: isApprove ? item.original_value : newFieldVal,
+          cascading_updates: cascadingUpdates,
+          reason: isApprove
+            ? (document.getElementById('approve-note').value || 'Approved as-is by reviewer.')
+            : (document.getElementById('edit-reason-input').value || 'Corrected by reviewer.')
+        };
+
+        try {
+          const resp = await fetch('/api/resolve-finding', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${state.token}`
+            },
+            body: JSON.stringify(payload)
+          });
+
+          if (resp.ok) {
+            closeReviewModal();
+            showToast(isApprove ? 'Record approved as-is!' : 'Kiln & Worker IDs synchronized and finding resolved!', 'success');
+
+            // Re-evaluate validation immediately
+            await triggerRunValidation(false);
+            await loadSubmissionsRegistry();
+          } else {
+            const errData = await resp.json();
+            showToast(errData.detail || 'Failed to submit review', 'error');
+          }
+        } catch (err) {
+          showToast('Error connecting to backend server', 'error');
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-check"></i> <span id="btn-submit-review-text">' + (isApprove ? 'Approve As-is' : 'Save Correction & Resolve') + '</span>';
+        }
+      }
+
+
+      // Sync ODK Central
+      async function triggerSyncODK() {
+        const syncBtn = document.getElementById('btn-sync-odk');
+        const syncIcon = document.getElementById('sync-icon');
+        syncBtn.disabled = true;
+        syncIcon.classList.add('spin-active');
+
+        showToast('Connecting to ODK Central API...', 'info');
+
+        try {
+          const resp = await fetch('/api/sync-odk', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+
           const data = await resp.json();
-          state.submissions = data.records;
-          renderRegistryTable(data.records);
-          document.getElementById('registry-count-info').textContent = `Total ${data.total} submissions loaded from database`;
+          if (resp.ok) {
+            showToast(data.message || `ODK Sync complete: ${data.records_synced} records`, 'success');
+            await triggerRunValidation(false);
+            await loadSubmissionsRegistry();
+            await loadSyncLogs();
+          } else {
+            showToast(data.detail || 'ODK Sync encountered an error', 'error');
+          }
+        } catch (e) {
+          showToast('ODK server network timeout or error', 'error');
+        } finally {
+          syncBtn.disabled = false;
+          syncIcon.classList.remove('spin-active');
         }
-      } catch (e) {
-        console.error('Error fetching submissions registry:', e);
-      }
-    }
-
-    function searchRegistry() {
-      loadSubmissionsRegistry();
-    }
-
-    function renderRegistryTable(records) {
-      const tbody = document.getElementById('registry-table-body');
-      if (!records || records.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="12" class="py-8 text-center text-slate-400">No matching submissions found</td></tr>`;
-        return;
       }
 
-      tbody.innerHTML = records.map(r => {
-        const instId = r['meta-instanceID'] || r.instanceId || r.KEY || '-';
-        const dateStr = r.survey_date || (r.SubmissionDate ? r.SubmissionDate.split('T')[0] : '-');
-        const safeId = encodeURIComponent(instId);
+      // Submissions Registry
+      async function loadSubmissionsRegistry() {
+        try {
+          const search = document.getElementById('registry-search') ? document.getElementById('registry-search').value : '';
+          const zone = document.getElementById('registry-zone-filter') ? document.getElementById('registry-zone-filter').value : 'all';
 
-        return `
+          const q = new URLSearchParams({ search, job_zone: zone, limit: 100 });
+          const resp = await fetch(`/api/submissions?${q.toString()}`, {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+
+          if (resp.ok) {
+            const data = await resp.json();
+            state.submissions = data.records;
+            renderRegistryTable(data.records);
+            document.getElementById('registry-count-info').textContent = `Total ${data.total} submissions loaded from database`;
+          }
+        } catch (e) {
+          console.error('Error fetching submissions registry:', e);
+        }
+      }
+
+      function searchRegistry() {
+        loadSubmissionsRegistry();
+      }
+
+      function renderRegistryTable(records) {
+        const tbody = document.getElementById('registry-table-body');
+        if (!records || records.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="12" class="py-8 text-center text-slate-400">No matching submissions found</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = records.map(r => {
+          const instId = r['meta-instanceID'] || r.instanceId || r.KEY || '-';
+          const dateStr = r.survey_date || (r.SubmissionDate ? r.SubmissionDate.split('T')[0] : '-');
+          const safeId = encodeURIComponent(instId);
+
+          return `
           <tr class="hover:bg-slate-800/40 light:hover:bg-slate-50 transition border-b border-[#1e293b] light:border-slate-200">
             <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px] whitespace-nowrap">${dateStr}</td>
             <td class="py-2.5 px-3 font-mono font-semibold text-indigo-400 whitespace-nowrap">${r.kiln_unique_id || '-'}</td>
@@ -1539,68 +1551,68 @@
             </td>
           </tr>
         `;
-      }).join('');
-    }
+        }).join('');
+      }
 
-    function inspectRecord(encodedId) {
-      const instId = decodeURIComponent(encodedId);
-      const rec = state.submissions.find(s => (s['meta-instanceID'] || s.instanceId || s.KEY) === instId);
-      if (!rec) return;
+      function inspectRecord(encodedId) {
+        const instId = decodeURIComponent(encodedId);
+        const rec = state.submissions.find(s => (s['meta-instanceID'] || s.instanceId || s.KEY) === instId);
+        if (!rec) return;
 
-      document.getElementById('inspect-modal-sub').textContent = instId;
-      const container = document.getElementById('inspect-fields-container');
+        document.getElementById('inspect-modal-sub').textContent = instId;
+        const container = document.getElementById('inspect-fields-container');
 
-      const fields = Object.entries(rec).filter(([k]) => !k.startsWith('_'));
-      container.innerHTML = fields.map(([k, v]) => `
+        const fields = Object.entries(rec).filter(([k]) => !k.startsWith('_'));
+        container.innerHTML = fields.map(([k, v]) => `
         <div class="flex items-center justify-between p-2 rounded bg-[#0d1527] light:bg-slate-100 border border-slate-800 light:border-slate-300 text-xs">
           <span class="font-mono text-slate-400">${k}</span>
           <span class="font-mono font-medium text-slate-200 light:text-slate-900 truncate max-w-sm">${String(v)}</span>
         </div>
       `).join('');
 
-      document.getElementById('inspect-modal').showModal();
-    }
+        document.getElementById('inspect-modal').showModal();
+      }
 
-    // Load Sync Logs
-    async function loadSyncLogs() {
-      try {
-        const resp = await fetch('/api/sync-logs', {
-          headers: { 'Authorization': `Bearer ${state.token}` }
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          renderSyncLogs(data.logs);
+      // Load Sync Logs
+      async function loadSyncLogs() {
+        try {
+          const resp = await fetch('/api/sync-logs', {
+            headers: { 'Authorization': `Bearer ${state.token}` }
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            renderSyncLogs(data.logs);
 
-          if (data.config) {
-            document.getElementById('cfg-odk-url').textContent = data.config.odk_base_url || '--';
-            document.getElementById('cfg-odk-project').textContent = data.config.odk_project_id || '--';
-            document.getElementById('cfg-odk-form').textContent = data.config.odk_form_id || '--';
-            document.getElementById('cfg-odk-email').textContent = data.config.odk_email || '--';
+            if (data.config) {
+              document.getElementById('cfg-odk-url').textContent = data.config.odk_base_url || '--';
+              document.getElementById('cfg-odk-project').textContent = data.config.odk_project_id || '--';
+              document.getElementById('cfg-odk-form').textContent = data.config.odk_form_id || '--';
+              document.getElementById('cfg-odk-email').textContent = data.config.odk_email || '--';
+            }
           }
+        } catch (e) {
+          console.error('Error fetching sync logs:', e);
         }
-      } catch (e) {
-        console.error('Error fetching sync logs:', e);
-      }
-    }
-
-    function renderSyncLogs(logs) {
-      const tbody = document.getElementById('sync-logs-table-body');
-      if (!logs || logs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">No sync execution logs recorded</td></tr>`;
-        return;
       }
 
-      tbody.innerHTML = logs.map(l => {
-        let badge = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
-        if (l.status.includes('FAILED') || l.status.includes('ERROR')) {
-          badge = 'bg-rose-500/20 text-rose-400 border border-rose-500/30';
-        } else if (l.status.includes('SIMULATED') || l.status.includes('SEED')) {
-          badge = 'bg-sky-500/20 text-sky-400 border border-sky-500/30';
+      function renderSyncLogs(logs) {
+        const tbody = document.getElementById('sync-logs-table-body');
+        if (!logs || logs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">No sync execution logs recorded</td></tr>`;
+          return;
         }
 
-        const dateStr = l.timestamp ? new Date(l.timestamp).toLocaleString() : '-';
+        tbody.innerHTML = logs.map(l => {
+          let badge = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+          if (l.status.includes('FAILED') || l.status.includes('ERROR')) {
+            badge = 'bg-rose-500/20 text-rose-400 border border-rose-500/30';
+          } else if (l.status.includes('SIMULATED') || l.status.includes('SEED')) {
+            badge = 'bg-sky-500/20 text-sky-400 border border-sky-500/30';
+          }
 
-        return `
+          const dateStr = l.timestamp ? new Date(l.timestamp).toLocaleString() : '-';
+
+          return `
           <tr class="hover:bg-slate-800/40 light:hover:bg-slate-50 transition border-b border-[#1e293b] light:border-slate-200">
             <td class="py-2.5 px-3 font-mono text-[11px] text-slate-400 whitespace-nowrap">${dateStr}</td>
             <td class="py-2.5 px-3 whitespace-nowrap">
@@ -1611,93 +1623,93 @@
             <td class="py-2.5 px-3 font-mono text-slate-400 text-xs whitespace-nowrap">${l.user || 'system'}</td>
           </tr>
         `;
-      }).join('');
-    }
+        }).join('');
+      }
 
-    // Navigation Tab Switching
-    function switchTab(tabId) {
-      const tabs = ['data-quality', 'submissions-registry', 'sync-logs', 'export-center'];
-      tabs.forEach(t => {
-        const btn = document.getElementById(`tab-${t}`);
-        const panel = document.getElementById(`panel-${t}`);
-        if (t === tabId) {
-          btn.classList.add('tab-active');
-          panel.classList.remove('hidden');
-        } else {
-          btn.classList.remove('tab-active');
-          panel.classList.add('hidden');
+      // Navigation Tab Switching
+      function switchTab(tabId) {
+        const tabs = ['data-quality', 'submissions-registry', 'sync-logs', 'export-center'];
+        tabs.forEach(t => {
+          const btn = document.getElementById(`tab-${t}`);
+          const panel = document.getElementById(`panel-${t}`);
+          if (t === tabId) {
+            btn.classList.add('tab-active');
+            panel.classList.remove('hidden');
+          } else {
+            btn.classList.remove('tab-active');
+            panel.classList.add('hidden');
+          }
+        });
+
+        if (tabId === 'submissions-registry') {
+          loadSubmissionsRegistry();
+        } else if (tabId === 'sync-logs') {
+          loadSyncLogs();
         }
-      });
-
-      if (tabId === 'submissions-registry') {
-        loadSubmissionsRegistry();
-      } else if (tabId === 'sync-logs') {
-        loadSyncLogs();
       }
-    }
 
-    // Export Utilities
-    function downloadCleanCSV() {
-      if (!state.token) return;
-      window.location.href = `/api/export/clean-csv?token=${encodeURIComponent(state.token)}`;
-      showToast('Cleaned dataset CSV download initiated', 'success');
-    }
+      // Export Utilities
+      function downloadCleanCSV() {
+        if (!state.token) return;
+        window.location.href = `/api/export/clean-csv?token=${encodeURIComponent(state.token)}`;
+        showToast('Cleaned dataset CSV download initiated', 'success');
+      }
 
-    function downloadAuditCSV() {
-      if (!state.token) return;
-      window.location.href = `/api/export/audit-csv?token=${encodeURIComponent(state.token)}`;
-      showToast('Audit log changelog CSV download initiated', 'success');
-    }
+      function downloadAuditCSV() {
+        if (!state.token) return;
+        window.location.href = `/api/export/audit-csv?token=${encodeURIComponent(state.token)}`;
+        showToast('Audit log changelog CSV download initiated', 'success');
+      }
 
-    function downloadRScript() {
-      window.location.href = `/api/export/r-script`;
-      showToast('clean_script.R download initiated', 'success');
-    }
+      function downloadRScript() {
+        window.location.href = `/api/export/r-script`;
+        showToast('clean_script.R download initiated', 'success');
+      }
 
-    function copyRScriptCode() {
-      const code = document.getElementById('r-script-preview-code').innerText;
-      navigator.clipboard.writeText(code).then(() => {
-        const btn = document.getElementById('btn-copy-r');
-        btn.innerHTML = '<i class="fa-solid fa-check text-emerald-400"></i> <span>Copied!</span>';
+      function copyRScriptCode() {
+        const code = document.getElementById('r-script-preview-code').innerText;
+        navigator.clipboard.writeText(code).then(() => {
+          const btn = document.getElementById('btn-copy-r');
+          btn.innerHTML = '<i class="fa-solid fa-check text-emerald-400"></i> <span>Copied!</span>';
+          setTimeout(() => {
+            btn.innerHTML = '<i class="fa-regular fa-copy"></i> <span>Copy Code</span>';
+          }, 2000);
+          showToast('R script copied to clipboard', 'info');
+        });
+      }
+
+      // Toast Notification System
+      function showToast(message, type = 'info') {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+
+        let border = 'border-indigo-500/40 text-slate-100 bg-[#111a36]';
+        let icon = 'fa-info-circle text-indigo-400';
+        if (type === 'success') {
+          border = 'border-emerald-500/40 text-slate-100 bg-[#111a36]';
+          icon = 'fa-circle-check text-emerald-400';
+        } else if (type === 'error') {
+          border = 'border-rose-500/40 text-slate-100 bg-[#111a36]';
+          icon = 'fa-triangle-exclamation text-rose-400';
+        }
+
+        toast.className = `pointer-events-auto flex items-center space-x-3 px-4 py-3 rounded-xl border shadow-xl ${border} transition-all duration-300 transform translate-y-2 opacity-0 text-xs font-medium max-w-sm`;
+        toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i><span>${message}</span>`;
+
+        container.appendChild(toast);
+
+        // Animate in
+        requestAnimationFrame(() => {
+          toast.classList.remove('translate-y-2', 'opacity-0');
+        });
+
+        // Auto remove after 3.5s
         setTimeout(() => {
-          btn.innerHTML = '<i class="fa-regular fa-copy"></i> <span>Copy Code</span>';
-        }, 2000);
-        showToast('R script copied to clipboard', 'info');
-      });
-    }
-
-    // Toast Notification System
-    function showToast(message, type = 'info') {
-      const container = document.getElementById('toast-container');
-      const toast = document.createElement('div');
-
-      let border = 'border-indigo-500/40 text-slate-100 bg-[#111a36]';
-      let icon = 'fa-info-circle text-indigo-400';
-      if (type === 'success') {
-        border = 'border-emerald-500/40 text-slate-100 bg-[#111a36]';
-        icon = 'fa-circle-check text-emerald-400';
-      } else if (type === 'error') {
-        border = 'border-rose-500/40 text-slate-100 bg-[#111a36]';
-        icon = 'fa-triangle-exclamation text-rose-400';
+          toast.classList.add('opacity-0', 'translate-y-2');
+          setTimeout(() => toast.remove(), 300);
+        }, 3500);
       }
-
-      toast.className = `pointer-events-auto flex items-center space-x-3 px-4 py-3 rounded-xl border shadow-xl ${border} transition-all duration-300 transform translate-y-2 opacity-0 text-xs font-medium max-w-sm`;
-      toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i><span>${message}</span>`;
-
-      container.appendChild(toast);
-
-      // Animate in
-      requestAnimationFrame(() => {
-        toast.classList.remove('translate-y-2', 'opacity-0');
-      });
-
-      // Auto remove after 3.5s
-      setTimeout(() => {
-        toast.classList.add('opacity-0', 'translate-y-2');
-        setTimeout(() => toast.remove(), 300);
-      }, 3500);
-    }
-  </script>
+    </script>
 </body>
 
 </html>
