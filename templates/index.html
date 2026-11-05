@@ -1155,8 +1155,8 @@
             </td>
             <td class="py-3 px-4 whitespace-nowrap" title="${item.instanceID}" data-instance-id="${item.instanceID}">
               <div>
-                <span class="font-semibold text-slate-200 light:text-slate-900 text-xs">${item.interviewer && item.interviewer !== '-' ? item.interviewer : 'Field Enumerator'}</span>
-                <span class="text-[11px] text-slate-400 light:text-slate-500 block">Worker: ${item.worker_name && item.worker_name !== '-' ? item.worker_name : 'N/A'}</span>
+                <span class="font-semibold text-slate-200 light:text-slate-900 text-xs">${(item.SubmitterName && item.SubmitterName !== '-') ? item.SubmitterName : (item.interviewer && item.interviewer !== '-' ? item.interviewer : 'Field Enumerator')}</span>
+                <span class="text-[11px] text-slate-400 light:text-slate-500 block">Owner: ${item.worker_name && item.worker_name !== '-' ? item.worker_name : 'N/A'}</span>
               </div>
             </td>
             <td class="py-3 px-4 font-mono font-medium text-indigo-400 whitespace-nowrap">

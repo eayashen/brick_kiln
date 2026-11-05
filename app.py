@@ -626,6 +626,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
             base_dict.setdefault("worker_name", w_name)
             base_dict.setdefault("survey_date", survey_date_val)
             base_dict.setdefault("interviewer", inv_name)
+            base_dict.setdefault("SubmitterName", doc.get("SubmitterName") or "-")
             findings.append(base_dict)
 
         # If consent is "no", skip operational/kiln rules (it's a recorded non-interview)
@@ -730,13 +731,13 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
         # ----------------------------------------------------------------------
         # Rule 4: Age Boundary Check (REVIEW_FLAG)
         # ----------------------------------------------------------------------
-        # Kiln Owner Age: < 18 or > 45
+        # Kiln Owner Age: < 18 or > 70
         rule_age = "rule_age_boundary"
         raw_owner_age = doc.get("kiln_owner_age_years")
         if raw_owner_age is not None and str(raw_owner_age).strip() != "":
             try:
                 age_val = float(raw_owner_age)
-                if age_val < 18 or age_val > 45:
+                if age_val < 18 or age_val > 70:
                     if rule_age not in resolved_flags:
                         records_with_unresolved_issues.add(inst_id)
                         append_finding({
@@ -747,7 +748,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                             "instanceID": inst_id,
                             "field": "kiln_owner_age_years",
                             "original_value": str(int(age_val) if age_val.is_integer() else age_val),
-                            "detected_issue": f"Kiln Owner Age Out of Standard Range (<18 or >45: reported {int(age_val)} yrs)",
+                            "detected_issue": f"Kiln Owner Age Out of Standard Range (<18 or >70: reported {int(age_val)} yrs)",
                             "status": "Active"
                         })
             except (ValueError, TypeError):
