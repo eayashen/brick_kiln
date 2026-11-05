@@ -486,10 +486,10 @@
                 <th class="py-3 px-3">Kiln Name</th>
                 <th class="py-3 px-3">Owner Name</th>
                 <th class="py-3 px-3">Owner Phone</th>
-                <th class="py-3 px-3">Upazila / District</th>
+                <th class="py-3 px-3">Upazila</th>
                 <th class="py-3 px-3">Owner Age</th>
-                <th class="py-3 px-3">Exp</th>
-                <th class="py-3 px-3">Target Prod (Lakh)</th>
+                <th class="py-3 px-3 text-center">This Year Operate</th>
+                <th class="py-3 px-3 text-center">Previous Year Operate</th>
                 <th class="py-3 px-3 text-center">Consent</th>
                 <th class="py-3 px-3 text-center">Inspect</th>
               </tr>
@@ -1713,6 +1713,17 @@
         return;
       }
 
+      const formatOperateBadge = (val) => {
+        if (!val || val === '-') return '<span class="text-slate-500 font-mono">-</span>';
+        const s = String(val).trim().toLowerCase();
+        if (s === 'yes') {
+          return '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold">Yes</span>';
+        } else if (s === 'no') {
+          return '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-semibold">No</span>';
+        }
+        return `<span class="px-2 py-0.5 rounded bg-slate-700/40 text-slate-300 border border-slate-600/40 text-[10px]">${val}</span>`;
+      };
+
       tbody.innerHTML = records.map(r => {
         const instId = r['meta-instanceID'] || r.instanceId || r.KEY || r.instanceID || '-';
         const dateStr = r.collection_date || r.survey_date || (r.SubmissionDate ? r.SubmissionDate.split('T')[0] : '-');
@@ -1722,10 +1733,10 @@
         const kilnName = r.kiln_name || '-';
         const ownerName = r.kiln_owner_name || r.worker_name || '-';
         const ownerPhone = r.kiln_owner_phone || '-';
-        const location = r.kiln_upazila_label || r.kiln_upazila || r.kiln_district || (r.district ? `Dist: ${r.district}` : '-');
+        const upazila = r.kiln_upazila_label || r.kiln_upazila || '-';
         const age = r.kiln_owner_age_years ?? r.worker_age ?? '-';
-        const exp = r.kiln_owner_experience_years ?? r.experience_years ?? '-';
-        const prod = r['target_brick_production_2025-2026'] || r.target_brick_production_2025_2026 || '-';
+        const thisYearOperate = r.kiln_operate_plan ?? r['kiln_operation_information-kiln_operate_plan'] ?? '-';
+        const prevYearOperate = r.kiln_operation_previous_year ?? r['previous_season_note-kiln_operation_previous_year'] ?? '-';
         const consent = String(r.consent || r['consent_taking-consent'] || 'yes').toLowerCase();
         const consentBadge = consent === 'yes'
           ? '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold">Yes</span>'
@@ -1738,10 +1749,10 @@
             <td class="py-2.5 px-3 font-medium text-slate-200 light:text-slate-900 whitespace-nowrap">${kilnName}</td>
             <td class="py-2.5 px-3 font-medium text-slate-300 light:text-slate-800 whitespace-nowrap">${ownerName}</td>
             <td class="py-2.5 px-3 font-mono text-slate-300 light:text-slate-700 whitespace-nowrap">${ownerPhone}</td>
-            <td class="py-2.5 px-3 text-slate-300 light:text-slate-700 whitespace-nowrap">${location}</td>
+            <td class="py-2.5 px-3 text-slate-300 light:text-slate-700 whitespace-nowrap">${upazila}</td>
             <td class="py-2.5 px-3 whitespace-nowrap font-mono">${age}</td>
-            <td class="py-2.5 px-3 whitespace-nowrap font-mono">${exp}</td>
-            <td class="py-2.5 px-3 whitespace-nowrap font-mono text-amber-400 light:text-amber-600">${prod}</td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">${formatOperateBadge(thisYearOperate)}</td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">${formatOperateBadge(prevYearOperate)}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">${consentBadge}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">
               <button onclick="inspectRecord('${safeId}')" class="p-1.5 text-slate-400 hover:text-indigo-400 rounded hover:bg-slate-800 transition" title="Inspect full record">
