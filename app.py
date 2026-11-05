@@ -25,40 +25,119 @@ logger = logging.getLogger("brick_kiln_monitor")
 # Load environment variables
 load_dotenv(override=True)
 
-MONGODB_URI = os.getenv("MONGODB_URI", "mongodb+srv://<username>:<password>@cluster.mongodb.net/?retryWrites=true&w=majority")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "brick_kiln_db")
+MONGODB_URI = os.getenv("MONGODB_URI", "")
+DATABASE_NAME = os.getenv("DATABASE_NAME", "odk_data_quality")
 RAW_COLLECTION = os.getenv("RAW_COLLECTION", "raw_submissions")
 CLEAN_COLLECTION = os.getenv("CLEAN_COLLECTION", "cleaned_submissions")
 AUDIT_COLLECTION = os.getenv("AUDIT_COLLECTION", "audit_logs")
 SYNC_COLLECTION = "sync_logs"
 
-ODK_BASE_URL = os.getenv("ODK_BASE_URL", "https://odk.yourdomain.com").rstrip("/")
-ODK_EMAIL = os.getenv("ODK_EMAIL", "admin@example.com")
-ODK_PASSWORD = os.getenv("ODK_PASSWORD", "your_password")
-ODK_PROJECT_ID = os.getenv("ODK_PROJECT_ID", "5")
-ODK_FORM_ID = os.getenv("ODK_FORM_ID", "brick_kiln_survey")
+ODK_BASE_URL = os.getenv("ODK_BASE_URL", "https://woodsinstitute.getodk.cloud").rstrip("/")
+ODK_EMAIL = os.getenv("ODK_EMAIL", "")
+ODK_PASSWORD = os.getenv("ODK_PASSWORD", "")
+ODK_PROJECT_ID = os.getenv("ODK_PROJECT_ID", "")
+ODK_FORM_ID = os.getenv("ODK_FORM_ID", "")
 
 JWT_SECRET = os.getenv("JWT_SECRET", "super_secret_jwt_key_2026")
 JWT_ALGORITHM = "HS256"
 PORT = int(os.getenv("PORT", 8000))
 
-# Pre-hashed passwords for hardcoded users
+# Load Dashboard user passwords from environment variables (.env)
+DASHBOARD_ADMIN_PASSWORD = os.getenv("DASHBOARD_ADMIN_PASSWORD", "kiln1234")
+DASHBOARD_REVIEWER_PASSWORD = os.getenv("DASHBOARD_REVIEWER_PASSWORD", "kiln4321")
+
+# User credentials with hashed passwords loaded from environment variables
 USERS_DB = {
     "eayashen": {
         "username": "eayashen",
-        "password_hash": bcrypt.hashpw(b"kiln1234", bcrypt.gensalt()).decode("utf-8"),
+        "password_hash": bcrypt.hashpw(DASHBOARD_ADMIN_PASSWORD.encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
         "display_name": "Eayashen",
         "role": "Quality Architect & Admin",
         "avatar_color": "indigo"
     },
     "meftah": {
         "username": "meftah",
-        "password_hash": bcrypt.hashpw(b"kiln4321", bcrypt.gensalt()).decode("utf-8"),
+        "password_hash": bcrypt.hashpw(DASHBOARD_REVIEWER_PASSWORD.encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
         "display_name": "Meftah",
         "role": "Data Quality Reviewer",
         "avatar_color": "emerald"
     }
 }
+
+# ------------------------------------------------------------------------------
+# ODK OData Payload Normalization & Flattening Engine
+# ------------------------------------------------------------------------------
+def flatten_odk_submission(item: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Recursively flattens nested groups from ODK Central OData JSON,
+    extracts GeoJSON Point coordinates into -Latitude, -Longitude, -Altitude, -Accuracy,
+    normalizes naming conventions (2025_2026 -> 2025-2026),
+    and creates top-level keys matching the official ODK form / CSV dataset.
+    """
+    if not isinstance(item, dict):
+        return {}
+    flat: Dict[str, Any] = {}
+    
+    # System fields
+    sys = item.get("__system", {}) if isinstance(item.get("__system"), dict) else {}
+    flat["SubmissionDate"] = sys.get("submissionDate") or item.get("SubmissionDate")
+    flat["SubmitterID"] = sys.get("submitterId") or item.get("SubmitterID")
+    flat["SubmitterName"] = sys.get("submitterName") or item.get("SubmitterName")
+    flat["AttachmentsPresent"] = sys.get("attachmentsPresent") if sys.get("attachmentsPresent") is not None else item.get("AttachmentsPresent")
+    flat["AttachmentsExpected"] = sys.get("attachmentsExpected") if sys.get("attachmentsExpected") is not None else item.get("AttachmentsExpected")
+    flat["Status"] = sys.get("status") or item.get("Status")
+    flat["ReviewState"] = sys.get("reviewState") or item.get("ReviewState")
+    flat["DeviceID"] = sys.get("deviceId") or item.get("DeviceID")
+    flat["Edits"] = sys.get("edits") if sys.get("edits") is not None else item.get("Edits")
+    flat["FormVersion"] = sys.get("formVersion") or item.get("FormVersion")
+    
+    inst_id = (
+        item.get("__id") or 
+        (item.get("meta", {}).get("instanceID") if isinstance(item.get("meta"), dict) else None) or 
+        item.get("meta-instanceID") or 
+        item.get("instance_id") or 
+        item.get("KEY") or 
+        item.get("instanceID")
+    )
+    if inst_id:
+        flat["instanceID"] = str(inst_id)
+        flat["meta-instanceID"] = str(inst_id)
+        flat["KEY"] = str(inst_id)
+        flat["instance_id"] = str(inst_id)
+
+    def recurse(d: Dict[str, Any], prefix: str = ""):
+        for k, v in d.items():
+            if k in ["__system", "__id"]:
+                continue
+            if isinstance(v, dict):
+                # Check for GeoJSON Point
+                if v.get("type") == "Point" and "coordinates" in v and isinstance(v["coordinates"], list):
+                    coords = v["coordinates"]
+                    if len(coords) >= 2:
+                        flat[f"{k}-Longitude"] = coords[0]
+                        flat[f"{k}-Latitude"] = coords[1]
+                    if len(coords) >= 3:
+                        flat[f"{k}-Altitude"] = coords[2]
+                    if "properties" in v and isinstance(v["properties"], dict) and "accuracy" in v["properties"]:
+                        flat[f"{k}-Accuracy"] = v["properties"]["accuracy"]
+                else:
+                    recurse(v, f"{prefix}{k}/" if prefix else f"{k}/")
+            else:
+                flat[k] = v
+                k_norm = (
+                    k.replace("2025_2026", "2025-2026")
+                     .replace("2024_2025", "2024-2025")
+                     .replace("2023_2024", "2023-2024")
+                     .replace("1_5", "1.5")
+                     .replace("sawdust_biomass", "sawdust-biomass")
+                     .replace("clay_prep_moulding", "clay_prep-moulding")
+                     .replace("maintenance_equipment", "maintenance-equipment")
+                )
+                if k_norm != k:
+                    flat[k_norm] = v
+
+    recurse(item)
+    return flat
 
 # ------------------------------------------------------------------------------
 # Resilient Database Wrapper (Handles Atlas + Local Fallback if Mongo unreachable)
@@ -76,11 +155,12 @@ class ResilientDBStore:
             SYNC_COLLECTION: []
         }
         self._init_connection()
+        self.purge_sample_records()
 
     def _init_connection(self):
-        # Check if URI contains placeholders
-        if "<username>" in MONGODB_URI or "<password>" in MONGODB_URI:
-            logger.warning("MONGODB_URI contains placeholder credentials (<username>/<password>). Starting with resilient local persistence store.")
+        # Check if URI is missing or contains placeholders
+        if not MONGODB_URI or "<username>" in MONGODB_URI or "<password>" in MONGODB_URI:
+            logger.info("MONGODB_URI not provided or contains placeholder credentials (<username>/<password>). Starting with resilient local persistence store.")
             self._load_fallback()
             return
 
@@ -119,12 +199,20 @@ class ResilientDBStore:
         if not doc:
             return None
         res = dict(doc)
-        # If document has nested 'data' dictionary from ODK Central/Atlas, flatten/merge it
-        if "data" in res and isinstance(res["data"], dict):
-            for k, v in res["data"].items():
-                if k not in res or res[k] is None:
-                    res[k] = v
+        # If document has nested groups or 'data' dict from ODK Central/Atlas, flatten it
+        has_nested = any(isinstance(v, dict) for k, v in res.items() if k not in ["_modified_fields"])
+        if has_nested:
+            res = flatten_odk_submission(res)
+            # Re-apply modified fields if present
+            if "_modified_fields" in doc and isinstance(doc["_modified_fields"], dict):
+                res["_modified_fields"] = doc["_modified_fields"]
+                for mk, mv in doc["_modified_fields"].items():
+                    res[mk] = mv
+            if "_resolved_flags" in doc:
+                res["_resolved_flags"] = doc["_resolved_flags"]
+
         inst = (
+            res.get("instanceID") or 
             res.get("meta-instanceID") or 
             res.get("instance_id") or 
             res.get("__id") or 
@@ -133,6 +221,9 @@ class ResilientDBStore:
         )
         if inst:
             res["meta-instanceID"] = str(inst)
+            res["instance_id"] = str(inst)
+            res["KEY"] = str(inst)
+            res["instanceID"] = str(inst)
         return res
 
     def get_raw_all(self) -> List[Dict[str, Any]]:
@@ -317,323 +408,102 @@ class ResilientDBStore:
             return list(self.db[SYNC_COLLECTION].find({}, {"_id": 0}).sort("timestamp", pymongo.DESCENDING).limit(limit))
         return self.memory_store[SYNC_COLLECTION][:limit]
 
-    def seed_initial_records(self, sample_records: List[Dict[str, Any]]):
-        count = len(self.get_clean_all())
-        if count == 0:
-            logger.info("Initializing database with %d realistic sample submissions.", len(sample_records))
-            for rec in sample_records:
-                self.upsert_raw(dict(rec))
-                self.upsert_clean(dict(rec))
-            self.add_sync_log({
-                "status": "INITIAL_SEED",
-                "records_synced": len(sample_records),
-                "message": "Initialized repository with benchmark submissions and validation test cases.",
-                "user": "system"
-            })
+    def purge_sample_records(self):
+        sample_ids = [
+            "uuid:58f4715f-b5b3-4cee-857d-909d1da12152",
+            "uuid:71a2bc44-8831-482f-889a-0012984bb101",
+            "uuid:cc943211-4d33-4ee2-8233-22b4c9011133",
+            "uuid:dd054322-5e44-4dd3-9344-33c5d0122244",
+            "uuid:ff276544-7a66-4bb5-1566-55e7f2344466",
+            "uuid:bb832100-3c22-4ff1-9122-11a3b8900022",
+            "uuid:aa387655-8b77-4aa6-2677-66f8a3455577",
+            "uuid:ee165433-6f55-4cc4-0455-44d6e1233355",
+            "uuid:07a12389-11ba-44bb-8877-990011223344",
+            "uuid:09a12389-11ba-44bb-8877-991122334455",
+            "uuid:18b23490-22cb-55cc-9988-002233445566",
+            "uuid:83c4bd55-9942-493f-9988-112233445566",
+            "uuid:94d5ce66-0053-5a4f-0099-223344556677",
+            "uuid:a5e6df77-1164-6b5f-11aa-334455667788",
+            "uuid:b6f7e088-2275-7c6f-22bb-445566778899",
+            "uuid:c7a8f199-3386-8d7f-33cc-556677889900",
+            "uuid:d8b90200-4497-9e8f-44dd-667788990011"
+        ]
+        if self.is_connected_to_mongo:
+            try:
+                query = {
+                    "$or": [
+                        {"meta-instanceID": {"$in": sample_ids}},
+                        {"instance_id": {"$in": sample_ids}},
+                        {"KEY": {"$in": sample_ids}},
+                        {"SubmitterName": "Brick Kiln Survey"}
+                    ]
+                }
+                self.db[RAW_COLLECTION].delete_many(query)
+                self.db[CLEAN_COLLECTION].delete_many(query)
+                self.db[AUDIT_COLLECTION].delete_many({"instanceID": {"$in": sample_ids}})
+                self.db[SYNC_COLLECTION].delete_many({"status": {"$in": ["INITIAL_SEED", "SIMULATED_SUCCESS"]}})
+                logger.info("Purged sample records from MongoDB.")
+            except Exception as e:
+                logger.warning("Could not purge sample records from MongoDB: %s", str(e))
+        else:
+            changed = False
+            for s_id in sample_ids:
+                if s_id in self.memory_store[RAW_COLLECTION]:
+                    del self.memory_store[RAW_COLLECTION][s_id]
+                    changed = True
+                if s_id in self.memory_store[CLEAN_COLLECTION]:
+                    del self.memory_store[CLEAN_COLLECTION][s_id]
+                    changed = True
+
+            init_audit_len = len(self.memory_store[AUDIT_COLLECTION])
+            self.memory_store[AUDIT_COLLECTION] = [
+                a for a in self.memory_store[AUDIT_COLLECTION]
+                if a.get("instanceID") not in sample_ids
+            ]
+            if len(self.memory_store[AUDIT_COLLECTION]) != init_audit_len:
+                changed = True
+
+            init_sync_len = len(self.memory_store[SYNC_COLLECTION])
+            self.memory_store[SYNC_COLLECTION] = [
+                s for s in self.memory_store[SYNC_COLLECTION]
+                if s.get("status") not in ["INITIAL_SEED", "SIMULATED_SUCCESS"]
+            ]
+            if len(self.memory_store[SYNC_COLLECTION]) != init_sync_len:
+                changed = True
+
+            if changed:
+                self._save_fallback()
+                logger.info("Purged sample records from local fallback store.")
+
+    def reset_all_data(self):
+        """
+        Explicitly wipes all previous submissions, audit logs, and sync logs from
+        both MongoDB and local persistent store.
+        """
+        if self.is_connected_to_mongo:
+            try:
+                self.db[RAW_COLLECTION].delete_many({})
+                self.db[CLEAN_COLLECTION].delete_many({})
+                self.db[AUDIT_COLLECTION].delete_many({})
+                self.db[SYNC_COLLECTION].delete_many({})
+                logger.info("Successfully wiped all previous data from MongoDB collections.")
+            except Exception as e:
+                logger.error("Failed to reset MongoDB data: %s", str(e))
+
+        self.memory_store = {
+            RAW_COLLECTION: {},
+            CLEAN_COLLECTION: {},
+            AUDIT_COLLECTION: [],
+            SYNC_COLLECTION: []
+        }
+        self._save_fallback()
+        logger.info("Successfully reset local fallback storage.")
+
+    def seed_initial_records(self, sample_records: List[Dict[str, Any]] = None):
+        """Deprecated: sample records are no longer seeded."""
+        pass
 
 db_store = ResilientDBStore()
-
-# ------------------------------------------------------------------------------
-# Benchmark Seed Data
-# ------------------------------------------------------------------------------
-INITIAL_SAMPLE_DATA: List[Dict[str, Any]] = [
-    {
-        "SubmissionDate": "2026-09-20T06:30:38.355Z",
-        "survey_date": "2026-09-20",
-        "interviewer": "Yasin",
-        "division": "1",
-        "district": "06",
-        "kiln_number": "002",
-        "kiln_unique_id": "106002",
-        "kiln_id_display": "106002",
-        "worker_name": "Imran",
-        "worker_age": 26,
-        "job_zone": "firing",
-        "worker_unique_id": "106002_F",
-        "worker_id_display": "106002_F",
-        "experience_years": 5.0,
-        "daily_hours": 8,
-        "ppe_used": "gloves glasses",
-        "resp_symptoms": "sometimes",
-        "heat_exhaustion": "no",
-        "drinking_water_access": "no",
-        "medical_aid_access": "yes",
-        "monthly_income": 5000,
-        "worksite_location-Latitude": 23.777343,
-        "worksite_location-Longitude": 90.400492,
-        "worksite_location-Altitude": 0.0,
-        "worksite_location-Accuracy": 35.0,
-        "meta-instanceID": "uuid:58f4715f-b5b3-4cee-857d-909d1da12152",
-        "KEY": "uuid:58f4715f-b5b3-4cee-857d-909d1da12152",
-        "SubmitterID": 311,
-        "SubmitterName": "Brick Kiln Survey",
-        "ReviewState": "approved",
-        "Status": "active"
-    },
-    {
-        "SubmissionDate": "2026-09-20T07:15:20.100Z",
-        "survey_date": "2026-09-20",
-        "interviewer": "Rahim",
-        "division": "2",
-        "district": "04",
-        "kiln_number": "015",
-        "kiln_unique_id": "20405",  # Mismatch: should be 204015
-        "kiln_id_display": "20405",
-        "worker_name": "Rahim Ali",
-        "worker_age": 34,
-        "job_zone": "moulding",
-        "worker_unique_id": "20405_M",
-        "worker_id_display": "20405_M",
-        "experience_years": 4.0,
-        "daily_hours": 9,
-        "ppe_used": "none",
-        "resp_symptoms": "frequent",
-        "heat_exhaustion": "no",
-        "drinking_water_access": "yes",
-        "medical_aid_access": "yes",
-        "monthly_income": 4800,
-        "worksite_location-Latitude": 24.120400,
-        "worksite_location-Longitude": 90.310200,
-        "meta-instanceID": "uuid:71a2bc44-8831-482f-889a-0012984bb101",
-        "KEY": "uuid:71a2bc44-8831-482f-889a-0012984bb101",
-        "SubmitterID": 312,
-        "SubmitterName": "Brick Kiln Survey"
-    },
-    {
-        "SubmissionDate": "2026-09-20T08:00:10.500Z",
-        "survey_date": "2026-09-20",
-        "interviewer": "Yasin",
-        "division": "1",
-        "district": "06",
-        "kiln_number": "002",
-        "kiln_unique_id": "106002",  # Duplicate Kiln ID with Imran's record
-        "kiln_id_display": "106002",
-        "worker_name": "Kabir Hossain",
-        "worker_age": 38,
-        "job_zone": "transport",
-        "worker_unique_id": "106002_T",
-        "worker_id_display": "106002_T",
-        "experience_years": 8.0,
-        "daily_hours": 10,
-        "ppe_used": "boots",
-        "resp_symptoms": "no",
-        "heat_exhaustion": "no",
-        "drinking_water_access": "yes",
-        "medical_aid_access": "yes",
-        "monthly_income": 6200,
-        "worksite_location-Latitude": 23.777400,
-        "worksite_location-Longitude": 90.400500,
-        "meta-instanceID": "uuid:cc943211-4d33-4ee2-8233-22b4c9011133",
-        "KEY": "uuid:cc943211-4d33-4ee2-8233-22b4c9011133",
-        "SubmitterID": 311,
-        "SubmitterName": "Brick Kiln Survey"
-    },
-    {
-        "SubmissionDate": "2026-09-21T09:20:00.000Z",
-        "survey_date": "2026-09-21",
-        "interviewer": "Tanvir",
-        "division": "3",
-        "district": "12",
-        "kiln_number": "008",
-        "kiln_unique_id": "312008",
-        "kiln_id_display": "312008",
-        "worker_name": "Salim Mia",
-        "worker_age": 55,  # Review Flag: Age > 45
-        "job_zone": "loading",
-        "worker_unique_id": "312008_L",
-        "worker_id_display": "312008_L",
-        "experience_years": 15.0,
-        "daily_hours": 8,
-        "ppe_used": "gloves",
-        "resp_symptoms": "sometimes",
-        "heat_exhaustion": "no",
-        "drinking_water_access": "yes",
-        "medical_aid_access": "yes",
-        "monthly_income": 5500,
-        "worksite_location-Latitude": 22.340000,
-        "worksite_location-Longitude": 91.820000,
-        "meta-instanceID": "uuid:dd054322-5e44-4dd3-9344-33c5d0122244",
-        "KEY": "uuid:dd054322-5e44-4dd3-9344-33c5d0122244",
-        "SubmitterID": 314,
-        "SubmitterName": "Brick Kiln Survey"
-    },
-    {
-        "SubmissionDate": "2026-09-21T10:10:00.000Z",
-        "survey_date": "2026-09-21",
-        "interviewer": "Farhana",
-        "division": "2",
-        "district": "05",
-        "kiln_number": "010",
-        "kiln_unique_id": "205010",
-        "kiln_id_display": "205010",
-        "worker_name": "Jasim Uddin",
-        "worker_age": 40,
-        "job_zone": "firing",
-        "worker_unique_id": "205010_F",
-        "worker_id_display": "205010_F",
-        "experience_years": 7.0,
-        "daily_hours": 11,
-        "ppe_used": "mask",
-        "resp_symptoms": "frequent",
-        "heat_exhaustion": "yes",  # Conflict: heat_exhaustion yes + medical_aid no
-        "drinking_water_access": "yes",
-        "medical_aid_access": "no",
-        "monthly_income": 5100,
-        "worksite_location-Latitude": 24.360000,
-        "worksite_location-Longitude": 88.620000,
-        "meta-instanceID": "uuid:ff276544-7a66-4bb5-1566-55e7f2344466",
-        "KEY": "uuid:ff276544-7a66-4bb5-1566-55e7f2344466",
-        "SubmitterID": 315,
-        "SubmitterName": "Brick Kiln Survey"
-    },
-    {
-        "SubmissionDate": "2026-09-21T11:45:00.000Z",
-        "survey_date": "2026-09-21",
-        "interviewer": "Yasin",
-        "division": "1",
-        "district": "06",
-        "kiln_number": "003",
-        "kiln_unique_id": "106003",
-        "kiln_id_display": "106003",
-        "worker_name": "Abdul Karim",
-        "worker_age": 29,
-        "job_zone": "stacking",
-        "worker_unique_id": "106003_K",  # Error: job_zone is stacking, expected 106003_S
-        "worker_id_display": "106003_K",
-        "experience_years": 3.0,
-        "daily_hours": 8,
-        "ppe_used": "gloves",
-        "resp_symptoms": "no",
-        "heat_exhaustion": "no",
-        "drinking_water_access": "yes",
-        "medical_aid_access": "yes",
-        "monthly_income": 4500,
-        "worksite_location-Latitude": 23.780100,
-        "worksite_location-Longitude": 90.410200,
-        "meta-instanceID": "uuid:bb832100-3c22-4ff1-9122-11a3b8900022",
-        "KEY": "uuid:bb832100-3c22-4ff1-9122-11a3b8900022",
-        "SubmitterID": 311,
-        "SubmitterName": "Brick Kiln Survey"
-    },
-    {
-        "SubmissionDate": "2026-09-21T13:30:00.000Z",
-        "survey_date": "2026-09-21",
-        "interviewer": "Nayeem",
-        "division": "1",
-        "district": "08",
-        "kiln_number": "004",
-        "kiln_unique_id": "108004",
-        "kiln_id_display": "108004",
-        "worker_name": "Faruk Hossain",
-        "worker_age": 31,
-        "job_zone": "sorting",
-        "worker_unique_id": "108004_S",
-        "worker_id_display": "108004_S",
-        "experience_years": 6.0,
-        "daily_hours": 15,  # Warning: Extreme hours (>12)
-        "ppe_used": "gloves boots",
-        "resp_symptoms": "no",
-        "heat_exhaustion": "no",
-        "drinking_water_access": "yes",
-        "medical_aid_access": "yes",
-        "monthly_income": 5800,
-        "worksite_location-Latitude": 23.950000,
-        "worksite_location-Longitude": 90.150000,
-        "meta-instanceID": "uuid:aa387655-8b77-4aa6-2677-66f8a3455577",
-        "KEY": "uuid:aa387655-8b77-4aa6-2677-66f8a3455577",
-        "SubmitterID": 316,
-        "SubmitterName": "Brick Kiln Survey"
-    },
-    {
-        "SubmissionDate": "2026-09-22T08:10:00.000Z",
-        "survey_date": "2026-09-22",
-        "interviewer": "Sultana",
-        "division": "1",
-        "district": "06",
-        "kiln_number": "007",
-        "kiln_unique_id": "106007",
-        "kiln_id_display": "106007",
-        "worker_name": "Shakil Ahmed",
-        "worker_age": 16,  # Review Flag: Age < 18
-        "job_zone": "carrying",
-        "worker_unique_id": "106007_C",
-        "worker_id_display": "106007_C",
-        "experience_years": 1.0,
-        "daily_hours": 8,
-        "ppe_used": "none",
-        "resp_symptoms": "no",
-        "heat_exhaustion": "no",
-        "drinking_water_access": "yes",
-        "medical_aid_access": "yes",
-        "monthly_income": 3800,
-        "worksite_location-Latitude": 23.785000,
-        "worksite_location-Longitude": 90.412000,
-        "meta-instanceID": "uuid:ee165433-6f55-4cc4-0455-44d6e1233355",
-        "KEY": "uuid:ee165433-6f55-4cc4-0455-44d6e1233355",
-        "SubmitterID": 317,
-        "SubmitterName": "Brick Kiln Survey"
-    },
-    {
-        "SubmissionDate": "2026-09-22T09:40:00.000Z",
-        "survey_date": "2026-09-22",
-        "interviewer": "Yasin",
-        "division": "1",
-        "district": "06",
-        "kiln_number": "009",
-        "kiln_unique_id": "106009",
-        "kiln_id_display": "106009",
-        "worker_name": "Mizanur Rahman",
-        "worker_age": 30,
-        "job_zone": "firing",
-        "worker_unique_id": "106009_F",
-        "worker_id_display": "106009_F",
-        "experience_years": 7.0,
-        "daily_hours": 8,
-        "ppe_used": "gloves mask glasses",
-        "resp_symptoms": "no",
-        "heat_exhaustion": "no",
-        "drinking_water_access": "yes",
-        "medical_aid_access": "yes",
-        "monthly_income": 5400,
-        "worksite_location-Latitude": 23.791000,
-        "worksite_location-Longitude": 90.419000,
-        "meta-instanceID": "uuid:09a12389-11ba-44bb-8877-991122334455",
-        "KEY": "uuid:09a12389-11ba-44bb-8877-991122334455",
-        "SubmitterID": 311,
-        "SubmitterName": "Brick Kiln Survey"
-    },
-    {
-        "SubmissionDate": "2026-09-22T11:00:00.000Z",
-        "survey_date": "2026-09-22",
-        "interviewer": "Tanvir",
-        "division": "3",
-        "district": "12",
-        "kiln_number": "011",
-        "kiln_unique_id": "312011",
-        "kiln_id_display": "312011",
-        "worker_name": "Anwar Hossain",
-        "worker_age": 28,
-        "job_zone": "moulding",
-        "worker_unique_id": "312011_M",
-        "worker_id_display": "312011_M",
-        "experience_years": 5.0,
-        "daily_hours": 8,
-        "ppe_used": "gloves",
-        "resp_symptoms": "no",
-        "heat_exhaustion": "no",
-        "drinking_water_access": "yes",
-        "medical_aid_access": "yes",
-        "monthly_income": 4900,
-        "worksite_location-Latitude": 22.355000,
-        "worksite_location-Longitude": 91.834000,
-        "meta-instanceID": "uuid:18b23490-22cb-55cc-9988-002233445566",
-        "KEY": "uuid:18b23490-22cb-55cc-9988-002233445566",
-        "SubmitterID": 314,
-        "SubmitterName": "Brick Kiln Survey"
-    }
-]
-
-db_store.seed_initial_records(INITIAL_SAMPLE_DATA)
 
 # ------------------------------------------------------------------------------
 # FastAPI Application & Security
@@ -701,62 +571,105 @@ async def get_current_user(request: Request, auth: Optional[HTTPAuthorizationCre
 # ------------------------------------------------------------------------------
 def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
-    Evaluates submissions against business rules and filters out resolved findings.
+    Evaluates submissions against baseline data quality rules and filters out resolved findings.
+    Compatible with new baseline survey (307 fields) and historical forms.
     Returns calculated KPIs and active findings table.
     """
     findings = []
     
-    # Pre-calculate counts of kiln_unique_id for duplicate detection
+    # Pre-calculate counts of kiln_id for duplicate detection
     kiln_id_counts = {}
     for doc in submissions:
-        k_id = str(doc.get("kiln_unique_id", "")).strip()
-        if k_id:
+        # Ignore submissions where consent is "no"
+        consent_val = str(doc.get("consent", "")).strip().lower()
+        if consent_val == "no":
+            continue
+        k_id = str(doc.get("kiln_id") or doc.get("kiln_unique_id") or "").strip()
+        if k_id and k_id not in ["-", "None", ""]:
             kiln_id_counts[k_id] = kiln_id_counts.get(k_id, 0) + 1
 
     corrected_records_count = 0
     records_with_unresolved_issues = set()
 
     for doc in submissions:
-        inst_id = doc.get("meta-instanceID") or doc.get("instance_id") or doc.get("instanceId") or doc.get("KEY", "unknown")
+        inst_id = (
+            doc.get("instanceID") or 
+            doc.get("meta-instanceID") or 
+            doc.get("instance_id") or 
+            doc.get("KEY", "unknown")
+        )
         resolved_flags = doc.get("_resolved_flags", [])
         modified_fields = doc.get("_modified_fields", {})
 
-        raw_worker = doc.get("worker_name") or (doc.get("data", {}).get("worker_name") if isinstance(doc.get("data"), dict) else None)
-        raw_interviewer = doc.get("interviewer") or (doc.get("data", {}).get("interviewer") if isinstance(doc.get("data"), dict) else None)
-        w_name = str(raw_worker).strip() if raw_worker is not None and str(raw_worker).strip() not in ["", "None"] else "-"
-        inv_name = str(raw_interviewer).strip() if raw_interviewer is not None and str(raw_interviewer).strip() not in ["", "None"] else "-"
+        # Respondent / Owner / Interviewer extraction
+        owner_name = (
+            doc.get("kiln_owner_name") or 
+            doc.get("worker_name") or 
+            doc.get("kiln_name") or 
+            "-"
+        )
+        w_name = str(owner_name).strip() if str(owner_name).strip() not in ["", "None"] else "-"
+        inv_name = str(doc.get("interviewer") or "-").strip()
+        survey_date_val = str(doc.get("collection_date") or doc.get("survey_date") or (doc.get("SubmissionDate", "-")[:10] if doc.get("SubmissionDate") else "-"))
+
+        consent_status = str(doc.get("consent", "yes")).strip().lower()
 
         if resolved_flags or modified_fields:
             corrected_records_count += 1
 
         def append_finding(base_dict: Dict[str, Any]):
-            base_dict.setdefault("division", doc.get("division"))
-            base_dict.setdefault("district", doc.get("district"))
-            base_dict.setdefault("kiln_number", doc.get("kiln_number"))
-            base_dict.setdefault("kiln_unique_id", doc.get("kiln_unique_id"))
-            base_dict.setdefault("job_zone", doc.get("job_zone"))
-            base_dict.setdefault("worker_unique_id", doc.get("worker_unique_id"))
+            base_dict.setdefault("kiln_name", doc.get("kiln_name", "-"))
+            base_dict.setdefault("kiln_id", doc.get("kiln_id") or doc.get("kiln_unique_id") or "-")
+            base_dict.setdefault("dist_geocode", doc.get("dist_geocode") or doc.get("district") or "-")
+            base_dict.setdefault("kiln_upazila", doc.get("kiln_upazila_label") or doc.get("kiln_upazila") or "-")
+            base_dict.setdefault("kiln_owner_name", w_name)
+            base_dict.setdefault("worker_name", w_name)
+            base_dict.setdefault("survey_date", survey_date_val)
+            base_dict.setdefault("interviewer", inv_name)
             findings.append(base_dict)
 
-        # 1. Kiln ID Formula Verification:
-        # Expected kiln_unique_id = Division (1 digit) + District (2 digits) + Kiln Number (3 digits)
-        raw_div = doc.get("division")
-        raw_dist = doc.get("district")
-        raw_kiln = doc.get("kiln_number")
-        actual_kiln_id = str(doc.get("kiln_unique_id", "")).strip()
+        # If consent is "no", skip operational/kiln rules (it's a recorded non-interview)
+        if consent_status == "no":
+            continue
 
-        expected_kiln_id = None
-        try:
-            if raw_div is not None and raw_dist is not None and raw_kiln is not None:
-                d_num = int(str(raw_div).strip())
-                dt_num = int(str(raw_dist).strip())
-                k_num = int(str(raw_kiln).strip())
-                expected_kiln_id = f"{d_num}{dt_num:02d}{k_num:03d}"
-        except Exception:
-            expected_kiln_id = None
+        actual_kiln_id = str(doc.get("kiln_id") or doc.get("kiln_unique_id") or "").strip()
 
+        # ----------------------------------------------------------------------
+        # Rule 1: Kiln ID Reconstructed Formula Verification (ERROR)
+        # ----------------------------------------------------------------------
+        # New Formula: dist_geocode (2 digits) + interviewer (2 digits) + id (3 digits) = kiln_id (7 digits)
+        # Historical Formula: division (1 digit) + district (2 digits) + kiln_number (3 digits) = 6 digits
         rule_kiln_mismatch = "rule_kiln_id_mismatch"
-        if expected_kiln_id and actual_kiln_id != expected_kiln_id:
+        expected_kiln_id = None
+
+        dist_geo = doc.get("dist_geocode")
+        inv_code = doc.get("interviewer")
+        kiln_serial = doc.get("id")
+
+        if dist_geo is not None and inv_code is not None and kiln_serial is not None and str(dist_geo).strip() != "" and str(inv_code).strip() != "" and str(kiln_serial).strip() != "":
+            try:
+                dg_int = int(str(dist_geo).strip())
+                inv_int = int(str(inv_code).strip())
+                id_int = int(str(kiln_serial).strip())
+                expected_kiln_id = f"{dg_int:02d}{inv_int:02d}{id_int:03d}"
+            except Exception:
+                expected_kiln_id = None
+        else:
+            # Historical fallback
+            raw_div = doc.get("division") or doc.get("kiln_division")
+            raw_dist = doc.get("district") or doc.get("kiln_district")
+            raw_kiln = doc.get("kiln_number")
+            if raw_div is not None and raw_dist is not None and raw_kiln is not None:
+                try:
+                    d_num = int(str(raw_div).strip())
+                    dt_num = int(str(raw_dist).strip())
+                    k_num = int(str(raw_kiln).strip())
+                    expected_kiln_id = f"{d_num}{dt_num:02d}{k_num:03d}"
+                except Exception:
+                    expected_kiln_id = None
+
+        target_id_field = "kiln_id" if "kiln_id" in doc else "kiln_unique_id"
+        if expected_kiln_id and actual_kiln_id and actual_kiln_id != expected_kiln_id:
             if rule_kiln_mismatch not in resolved_flags:
                 records_with_unresolved_issues.add(inst_id)
                 append_finding({
@@ -765,16 +678,15 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                     "severity": "ERROR",
                     "category": "errors",
                     "instanceID": inst_id,
-                    "field": "kiln_unique_id",
+                    "field": target_id_field,
                     "original_value": actual_kiln_id,
                     "detected_issue": f"Kiln ID Structure Mismatch (Reconstructed: {expected_kiln_id}, Found: {actual_kiln_id})",
-                    "worker_name": w_name,
-                    "survey_date": doc.get("survey_date", "-"),
-                    "interviewer": inv_name,
                     "status": "Active"
                 })
 
-        # 2. Duplicate Kiln ID Check:
+        # ----------------------------------------------------------------------
+        # Rule 2: Duplicate Kiln ID Check (DUPLICATE_KILN_ID)
+        # ----------------------------------------------------------------------
         rule_dup_kiln = "rule_duplicate_kiln_id"
         if actual_kiln_id and kiln_id_counts.get(actual_kiln_id, 0) > 1:
             if rule_dup_kiln not in resolved_flags:
@@ -786,20 +698,19 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                     "severity": "DUPLICATE_KILN_ID",
                     "category": "duplicates",
                     "instanceID": inst_id,
-                    "field": "kiln_unique_id",
+                    "field": target_id_field,
                     "original_value": actual_kiln_id,
                     "detected_issue": f"Duplicate Kiln ID detected ({count_dups} submissions share ID {actual_kiln_id})",
-                    "worker_name": w_name,
-                    "survey_date": doc.get("survey_date", "-"),
-                    "interviewer": inv_name,
                     "status": "Active"
                 })
 
-        # 3. Worker Unique ID check: {kiln_unique_id}_{JobZoneInitial}
+        # ----------------------------------------------------------------------
+        # Rule 3: Worker ID Structure Mismatch (ERROR - Historical Only)
+        # ----------------------------------------------------------------------
         rule_worker_id = "rule_worker_id_mismatch"
         job_zone = str(doc.get("job_zone", "")).strip()
         worker_uid = str(doc.get("worker_unique_id", "")).strip()
-        if job_zone and actual_kiln_id:
+        if job_zone and actual_kiln_id and worker_uid:
             expected_worker_id = f"{actual_kiln_id}_{job_zone[0].upper()}"
             if worker_uid != expected_worker_id:
                 if rule_worker_id not in resolved_flags:
@@ -813,18 +724,18 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                         "field": "worker_unique_id",
                         "original_value": worker_uid,
                         "detected_issue": f"Worker ID Structure Mismatch (Expected: {expected_worker_id}, Found: {worker_uid})",
-                        "worker_name": w_name,
-                        "survey_date": doc.get("survey_date", "-"),
-                        "interviewer": inv_name,
                         "status": "Active"
                     })
 
-        # 4. Age Boundary Check: worker_age < 18 or > 45
+        # ----------------------------------------------------------------------
+        # Rule 4: Age Boundary Check (REVIEW_FLAG)
+        # ----------------------------------------------------------------------
+        # Kiln Owner Age: < 18 or > 45
         rule_age = "rule_age_boundary"
-        raw_age = doc.get("worker_age")
-        if raw_age is not None:
+        raw_owner_age = doc.get("kiln_owner_age_years")
+        if raw_owner_age is not None and str(raw_owner_age).strip() != "":
             try:
-                age_val = float(raw_age)
+                age_val = float(raw_owner_age)
                 if age_val < 18 or age_val > 45:
                     if rule_age not in resolved_flags:
                         records_with_unresolved_issues.add(inst_id)
@@ -834,18 +745,17 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                             "severity": "REVIEW_FLAG",
                             "category": "reviews",
                             "instanceID": inst_id,
-                            "field": "worker_age",
+                            "field": "kiln_owner_age_years",
                             "original_value": str(int(age_val) if age_val.is_integer() else age_val),
-                            "detected_issue": f"Worker Age Out of Standard Range (<18 or >45: reported {int(age_val)} yrs)",
-                            "worker_name": w_name,
-                            "survey_date": doc.get("survey_date", "-"),
-                            "interviewer": inv_name,
+                            "detected_issue": f"Kiln Owner Age Out of Standard Range (<18 or >45: reported {int(age_val)} yrs)",
                             "status": "Active"
                         })
             except (ValueError, TypeError):
                 pass
 
-        # 5. Health & Medical Aid Conflict: heat_exhaustion == 'yes' AND medical_aid_access == 'no'
+        # ----------------------------------------------------------------------
+        # Rule 5: Health & Medical Aid Conflict (REVIEW_FLAG - Historical Only)
+        # ----------------------------------------------------------------------
         rule_health = "rule_health_aid_conflict"
         heat = str(doc.get("heat_exhaustion", "")).strip().lower()
         med = str(doc.get("medical_aid_access", "")).strip().lower()
@@ -861,16 +771,15 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                     "field": "medical_aid_access",
                     "original_value": f"heat_exhaustion={heat}, medical_aid={med}",
                     "detected_issue": "Health Conflict: Heat exhaustion experienced but no medical aid access reported",
-                    "worker_name": w_name,
-                    "survey_date": doc.get("survey_date", "-"),
-                    "interviewer": inv_name,
                     "status": "Active"
                 })
 
-        # 6. Warnings: daily_hours > 12
+        # ----------------------------------------------------------------------
+        # Rule 6: Warnings: Extreme Daily Hours (WARNING - Historical Only)
+        # ----------------------------------------------------------------------
         rule_hours = "rule_extreme_hours"
         raw_hours = doc.get("daily_hours")
-        if raw_hours is not None:
+        if raw_hours is not None and str(raw_hours).strip() != "":
             try:
                 hrs = float(raw_hours)
                 if hrs > 12:
@@ -884,14 +793,10 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                             "field": "daily_hours",
                             "original_value": str(hrs),
                             "detected_issue": f"Extreme Daily Work Hours ({hrs} hrs/day exceeds 12-hour threshold)",
-                            "worker_name": w_name,
-                            "survey_date": doc.get("survey_date", "-"),
-                            "interviewer": inv_name,
                             "status": "Active"
                         })
             except (ValueError, TypeError):
                 pass
-
 
     total_submissions = len(submissions)
     
@@ -1017,20 +922,79 @@ async def api_resolve_finding(payload: ResolveFindingRequest, user: Dict[str, An
         return {"status": "success", "message": "Finding marked as approved as-is.", "instanceID": payload.instanceID}
 
     elif payload.action == "edit":
-        # Check if Kiln ID related or cascading updates passed
-        is_kiln_id_edit = (
-            (payload.field in ["kiln_unique_id", "division", "district", "kiln_number"]) or
-            (payload.rule_key in ["rule_duplicate_kiln_id", "rule_kiln_id_mismatch", "rule_worker_id_mismatch"]) or
-            bool(payload.cascading_updates)
+        casc = payload.cascading_updates or {}
+        
+        # Detect if this is the new 7-digit Kiln ID structure
+        is_7d_kiln = (
+            "kiln_id" in current_rec or "dist_geocode" in current_rec or
+            payload.field in ["kiln_id", "dist_geocode", "interviewer", "id"] or
+            "kiln_id" in casc or "dist_geocode" in casc
+        )
+        is_legacy_kiln = (
+            "kiln_unique_id" in current_rec or
+            payload.field in ["kiln_unique_id", "division", "district", "kiln_number"] or
+            "kiln_unique_id" in casc or "division" in casc
         )
 
         updates = {}
         affected_fields = []
         resolved_rules = [finding_key]
 
-        if is_kiln_id_edit:
-            casc = payload.cascading_updates or {}
-            
+        if is_7d_kiln and (
+            payload.field in ["kiln_id", "dist_geocode", "interviewer", "id"] or
+            payload.rule_key in ["rule_duplicate_kiln_id", "rule_kiln_id_mismatch"] or
+            bool(casc)
+        ):
+            curr_dist = current_rec.get("dist_geocode", "")
+            curr_inv = current_rec.get("interviewer", "")
+            curr_id = current_rec.get("id", "")
+            curr_kiln_id = str(current_rec.get("kiln_id", "")).strip()
+
+            target_kiln_id = None
+            if "kiln_id" in casc and str(casc["kiln_id"]).strip():
+                target_kiln_id = str(casc["kiln_id"]).strip()
+            elif payload.field == "kiln_id" and payload.new_value is not None:
+                target_kiln_id = str(payload.new_value).strip()
+
+            if target_kiln_id and len(target_kiln_id) == 7 and target_kiln_id.isdigit():
+                new_dist = target_kiln_id[0:2]
+                new_inv = target_kiln_id[2:4]
+                new_id = target_kiln_id[4:7]
+                final_kiln_id = target_kiln_id
+            else:
+                raw_dist = casc.get("dist_geocode", payload.new_value if payload.field == "dist_geocode" else curr_dist)
+                raw_inv = casc.get("interviewer", payload.new_value if payload.field == "interviewer" else curr_inv)
+                raw_id = casc.get("id", payload.new_value if payload.field == "id" else curr_id)
+
+                try:
+                    new_dist = f"{int(str(raw_dist).strip()):02d}"
+                    new_inv = f"{int(str(raw_inv).strip()):02d}"
+                    new_id = f"{int(str(raw_id).strip()):03d}"
+                    final_kiln_id = f"{new_dist}{new_inv}{new_id}"
+                except Exception:
+                    final_kiln_id = str(target_kiln_id or curr_kiln_id)
+                    new_dist = raw_dist
+                    new_inv = raw_inv
+                    new_id = raw_id
+
+            updates = {
+                "dist_geocode": str(new_dist),
+                "interviewer": str(new_inv),
+                "id": str(new_id),
+                "kiln_id": str(final_kiln_id)
+            }
+            affected_fields = ["dist_geocode", "interviewer", "id", "kiln_id"]
+            resolved_rules = list(set([
+                finding_key,
+                "rule_duplicate_kiln_id",
+                "rule_kiln_id_mismatch"
+            ]))
+
+        elif is_legacy_kiln and (
+            payload.field in ["kiln_unique_id", "division", "district", "kiln_number"] or
+            payload.rule_key in ["rule_duplicate_kiln_id", "rule_kiln_id_mismatch", "rule_worker_id_mismatch"] or
+            bool(casc)
+        ):
             # Baseline values from current record
             curr_div = current_rec.get("division")
             curr_dist = current_rec.get("district")
@@ -1102,7 +1066,11 @@ async def api_resolve_finding(payload: ResolveFindingRequest, user: Dict[str, An
                 raise HTTPException(status_code=400, detail="Field name and new_value required for edit action.")
             
             new_val = payload.new_value
-            if payload.field in ["worker_age", "daily_hours", "monthly_income"]:
+            if payload.field in [
+                "kiln_owner_age_years", "worker_age", 
+                "kiln_owner_experience_years", "experience_years", 
+                "daily_hours", "monthly_income"
+            ]:
                 try:
                     new_val = float(new_val) if "." in str(new_val) else int(new_val)
                 except Exception:
@@ -1118,15 +1086,17 @@ async def api_resolve_finding(payload: ResolveFindingRequest, user: Dict[str, An
         )
 
         # Audit logs for all affected fields
+        primary_target = payload.field or ("kiln_id" if is_7d_kiln else "kiln_unique_id")
         for f in affected_fields:
             old_f_val = current_rec.get(f, "")
             new_f_val = updates.get(f, "")
             # Log if value changed or if it was the explicitly targeted field
-            if str(old_f_val) != str(new_f_val) or f == (payload.field or "kiln_unique_id"):
-                action_name = "EDITED_AND_CORRECTED" if f == (payload.field or "kiln_unique_id") else "CASCADING_FIELD_UPDATE"
+            if str(old_f_val) != str(new_f_val) or f == primary_target:
+                action_name = "EDITED_AND_CORRECTED" if f == primary_target else "CASCADING_FIELD_UPDATE"
                 note_text = payload.reason or "Value corrected by reviewer."
-                if f != (payload.field or "kiln_unique_id"):
-                    note_text = f"Cascading synchronization from Kiln ID ({updates.get('kiln_unique_id')}). {note_text}"
+                if f != primary_target:
+                    target_repr = updates.get('kiln_id') or updates.get('kiln_unique_id')
+                    note_text = f"Cascading synchronization from Kiln ID ({target_repr}). {note_text}"
 
                 db_store.add_audit_log({
                     "instanceID": payload.instanceID,
@@ -1164,24 +1134,29 @@ async def api_sync_odk(user: Dict[str, Any] = Depends(get_current_user)):
     auth_url = f"{ODK_BASE_URL}/v1/sessions"
     submissions_url = f"{ODK_BASE_URL}/v1/projects/{ODK_PROJECT_ID}/forms/{ODK_FORM_ID}.svc/Submissions?$format=json"
 
-    # Check for placeholder configuration
-    is_placeholder_url = "odk.yourdomain.com" in ODK_BASE_URL or "example.com" in ODK_EMAIL
+    # Check for unconfigured or placeholder configuration
+    is_unconfigured = (
+        not ODK_EMAIL or
+        not ODK_PASSWORD or
+        not ODK_PROJECT_ID or
+        not ODK_FORM_ID or
+        "odk.yourdomain.com" in ODK_BASE_URL or
+        "example.com" in ODK_EMAIL
+    )
 
-    if is_placeholder_url:
-        # Provide simulated sync with new or refreshed sample records
-        sample_count = len(INITIAL_SAMPLE_DATA)
-        msg = f"Demonstration Sync: Live ODK endpoint is placeholder ({ODK_BASE_URL}). Verified {sample_count} submissions against pipeline."
+    if is_unconfigured:
+        msg = "Live ODK Central credentials or endpoint not fully configured in .env. Please configure ODK_EMAIL, ODK_PASSWORD, ODK_PROJECT_ID, and ODK_FORM_ID."
         db_store.add_sync_log({
-            "status": "SIMULATED_SUCCESS",
-            "records_synced": sample_count,
+            "status": "CONFIG_REQUIRED",
+            "records_synced": 0,
             "message": msg,
             "user": actor,
             "odk_endpoint": ODK_BASE_URL
         })
         return {
-            "status": "success",
-            "mode": "simulated",
-            "records_synced": sample_count,
+            "status": "warning",
+            "mode": "unconfigured",
+            "records_synced": 0,
             "message": msg
         }
 
@@ -1239,24 +1214,24 @@ async def api_sync_odk(user: Dict[str, Any] = Depends(get_current_user)):
         # Step 3 & 4: Upsert raw & cleaned submissions
         synced_count = 0
         for item in items:
+            flat_item = flatten_odk_submission(item)
             inst_id = (
-                item.get("__id") or 
-                item.get("meta-instanceID") or 
-                item.get("instance_id") or 
-                item.get("KEY") or 
-                item.get("instanceId")
+                flat_item.get("instanceID") or 
+                flat_item.get("meta-instanceID") or 
+                item.get("__id")
             )
             if not inst_id:
                 continue
+            flat_item["meta-instanceID"] = str(inst_id)
             item["meta-instanceID"] = str(inst_id)
             db_store.upsert_raw(dict(item))
-            db_store.upsert_clean(dict(item))
+            db_store.upsert_clean(dict(flat_item))
             synced_count += 1
 
         db_store.add_sync_log({
             "status": "SUCCESS",
             "records_synced": synced_count,
-            "message": f"Successfully pulled {synced_count} live submissions from ODK Central ({ODK_FORM_ID}).",
+            "message": f"Successfully pulled {synced_count} live submissions from ODK Central.",
             "user": actor,
             "odk_endpoint": ODK_BASE_URL
         })
@@ -1276,12 +1251,40 @@ async def api_sync_odk(user: Dict[str, Any] = Depends(get_current_user)):
             "user": actor,
             "odk_endpoint": ODK_BASE_URL
         })
-        raise HTTPException(status_code=503, detail=error_msg)
+        raise HTTPException(status_code=502, detail=error_msg)
+
+
+@app.post("/api/clear-sample-data")
+async def api_clear_sample_data(user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Purge all benchmark/sample records and simulated logs from the active store.
+    """
+    db_store.purge_sample_records()
+    return {
+        "status": "success",
+        "message": "All sample and demonstration records have been successfully purged."
+    }
+
+
+@app.post("/api/reset-all-data")
+async def api_reset_all_data(user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Completely reset and wipe all data (raw, cleaned, audit logs, sync logs)
+    across MongoDB and local fallback storage.
+    """
+    actor = user.get("username", "admin")
+    db_store.reset_all_data()
+    logger.info("Complete database wipe executed by %s", actor)
+    return {
+        "status": "success",
+        "message": "All database collections and local persistent stores have been reset."
+    }
 
 
 @app.get("/api/submissions")
 async def api_get_submissions(
     search: Optional[str] = None,
+    consent: Optional[str] = None,
     job_zone: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
@@ -1297,12 +1300,25 @@ async def api_get_submissions(
         s = search.lower().strip()
         records = [
             r for r in records if (
-                s in str(r.get("worker_name", "")).lower() or
-                s in str(r.get("kiln_unique_id", "")).lower() or
+                s in str(r.get("kiln_id", "")).lower() or
+                s in str(r.get("kiln_name", "")).lower() or
+                s in str(r.get("kiln_owner_name", "")).lower() or
+                s in str(r.get("kiln_owner_phone", "")).lower() or
+                s in str(r.get("kiln_upazila_label", "")).lower() or
+                s in str(r.get("dist_geocode", "")).lower() or
                 s in str(r.get("interviewer", "")).lower() or
                 s in str(r.get("meta-instanceID", "")).lower() or
+                s in str(r.get("instanceID", "")).lower() or
+                s in str(r.get("worker_name", "")).lower() or
+                s in str(r.get("kiln_unique_id", "")).lower() or
                 s in str(r.get("worker_unique_id", "")).lower()
             )
+        ]
+
+    if consent and consent != "all":
+        records = [
+            r for r in records 
+            if str(r.get("consent", r.get("consent_taking-consent", ""))).strip().lower() == consent.lower()
         ]
 
     if job_zone and job_zone != "all":

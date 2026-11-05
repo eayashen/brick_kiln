@@ -51,8 +51,8 @@ Edit `.env`:
 MONGODB_URI=mongodb+srv://<user>:<password>@cluster0.mongodb.net/?retryWrites=true&w=majority
 DB_NAME=odk_data_quality
 ODK_BASE_URL=https://<your-subdomain>.getodk.cloud
-ODK_PROJECT_ID=5
-ODK_FORM_ID=brick_kiln_survey
+ODK_PROJECT_ID=7
+ODK_FORM_ID=baseline_2026_2027_ZZK2.0_Mymensingh_Narsingdi_Narayanganj
 ODK_EMAIL=<your-odk-email>
 ODK_PASSWORD=<your-odk-password>
 JWT_SECRET_KEY=<your-secret-key>

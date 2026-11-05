@@ -208,7 +208,8 @@
       <div>
         <h1 class="text-lg font-bold text-white light:text-slate-900 tracking-tight leading-snug">Brick Kiln Data
           Quality Monitor</h1>
-        <p class="text-xs text-slate-400 light:text-slate-500 font-medium">Form: brick_kiln_survey • Project 5</p>
+        <p class="text-xs text-slate-400 light:text-slate-500 font-medium">Form:
+          baseline_2026_2027_ZZK2.0_Mymensingh_Narsingdi_Narayanganj • Project 7</p>
       </div>
     </div>
 
@@ -460,17 +461,16 @@
               <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
                 <i class="fa-solid fa-magnifying-glass text-xs"></i>
               </span>
-              <input type="text" id="registry-search" oninput="searchRegistry()" placeholder="Search worker, kiln ID..."
+              <input type="text" id="registry-search" oninput="searchRegistry()"
+                placeholder="Search Kiln ID, name, owner, phone, upazila..."
                 class="w-full pl-8 pr-3 py-1.5 bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-lg text-xs text-slate-100 light:text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500">
             </div>
 
-            <select id="registry-zone-filter" onchange="searchRegistry()"
+            <select id="registry-consent-filter" onchange="searchRegistry()"
               class="px-2.5 py-1.5 bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-lg text-xs text-slate-200 light:text-slate-800 focus:outline-none">
-              <option value="all">All Zones</option>
-              <option value="firing">Firing</option>
-              <option value="unloader">Unloader</option>
-              <option value="cooling">Cooling</option>
-              <option value="moving">Moving</option>
+              <option value="all">All Submissions</option>
+              <option value="yes">Consent: Yes</option>
+              <option value="no">Consent: No</option>
             </select>
           </div>
         </div>
@@ -483,22 +483,21 @@
                 class="bg-[#0d1527] light:bg-slate-100 text-slate-400 light:text-slate-600 uppercase tracking-wider font-semibold border-b border-[#1e293b] light:border-slate-200">
                 <th class="py-3 px-3">Date</th>
                 <th class="py-3 px-3">Kiln ID</th>
-                <th class="py-3 px-3">Worker Name</th>
-                <th class="py-3 px-3">Age</th>
-                <th class="py-3 px-3">Zone</th>
-                <th class="py-3 px-3">Worker UID</th>
-                <th class="py-3 px-3">Hours</th>
-                <th class="py-3 px-3">PPE</th>
-                <th class="py-3 px-3">Symptoms</th>
-                <th class="py-3 px-3">Heat / Aid</th>
-                <th class="py-3 px-3">Income</th>
+                <th class="py-3 px-3">Kiln Name</th>
+                <th class="py-3 px-3">Owner Name</th>
+                <th class="py-3 px-3">Owner Phone</th>
+                <th class="py-3 px-3">Upazila / District</th>
+                <th class="py-3 px-3">Owner Age</th>
+                <th class="py-3 px-3">Exp</th>
+                <th class="py-3 px-3">Target Prod (Lakh)</th>
+                <th class="py-3 px-3 text-center">Consent</th>
                 <th class="py-3 px-3 text-center">Inspect</th>
               </tr>
             </thead>
             <tbody id="registry-table-body"
               class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-200 light:text-slate-800">
               <tr>
-                <td colspan="12" class="py-8 text-center text-slate-400">Loading submissions...</td>
+                <td colspan="11" class="py-8 text-center text-slate-400">Loading submissions...</td>
               </tr>
             </tbody>
           </table>
@@ -540,11 +539,23 @@
               </div>
             </div>
           </div>
-          <div class="mt-4 pt-3 border-t border-slate-700 light:border-slate-200">
+          <div class="mt-4 pt-3 border-t border-slate-700 light:border-slate-200 space-y-2">
             <button onclick="triggerSyncODK()"
               class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
               <i class="fa-solid fa-rotate"></i>
               <span>Trigger Manual Sync</span>
+            </button>
+            <!--
+            <button onclick="clearSampleData()"
+              class="w-full py-2 bg-slate-800/80 hover:bg-amber-950/40 hover:text-amber-300 hover:border-amber-500/40 light:bg-slate-100 light:hover:bg-amber-50 light:hover:text-amber-700 border border-slate-700 light:border-slate-300 text-slate-400 rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition">
+              <i class="fa-solid fa-broom text-amber-400"></i>
+              <span>Purge Sample / Test Data</span>
+            </button>
+            -->
+            <button onclick="resetAllData()"
+              class="w-full py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-600/40 text-rose-300 rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition">
+              <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
+              <span>Reset All Previous Data</span>
             </button>
           </div>
         </div>
@@ -760,22 +771,25 @@
               </div>
               <div class="grid grid-cols-3 gap-2">
                 <div>
-                  <label class="block text-[10px] font-mono text-slate-400 mb-0.5">Division (1 digit)</label>
-                  <input type="text" id="cascade-division" maxlength="1"
+                  <label id="lbl-cascade-c1" class="block text-[10px] font-mono text-slate-400 mb-0.5">District Geocode
+                    (2d)</label>
+                  <input type="text" id="cascade-division" maxlength="2"
                     class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
-                    placeholder="1" oninput="onCascadeComponentChange()">
+                    placeholder="68" oninput="onCascadeComponentChange()">
                 </div>
                 <div>
-                  <label class="block text-[10px] font-mono text-slate-400 mb-0.5">District (2 digits)</label>
+                  <label id="lbl-cascade-c2" class="block text-[10px] font-mono text-slate-400 mb-0.5">Interviewer
+                    (2d)</label>
                   <input type="text" id="cascade-district" maxlength="2"
                     class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
-                    placeholder="02" oninput="onCascadeComponentChange()">
+                    placeholder="16" oninput="onCascadeComponentChange()">
                 </div>
                 <div>
-                  <label class="block text-[10px] font-mono text-slate-400 mb-0.5">Kiln No. (3 digits)</label>
+                  <label id="lbl-cascade-c3" class="block text-[10px] font-mono text-slate-400 mb-0.5">Kiln No.
+                    (3d)</label>
                   <input type="text" id="cascade-kiln-number" maxlength="3"
                     class="w-full px-2.5 py-1.5 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs text-center font-mono font-bold text-slate-100 light:text-slate-900 focus:outline-none focus:border-indigo-500"
-                    placeholder="006" oninput="onCascadeComponentChange()">
+                    placeholder="002" oninput="onCascadeComponentChange()">
                 </div>
               </div>
             </div>
@@ -783,32 +797,33 @@
             <!-- Option B: Direct Full Kiln ID Edit with Auto-Breakdown -->
             <div>
               <div class="flex items-center justify-between mb-1">
-                <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option B: Full Kiln Unique
+                <span class="text-[11px] font-semibold text-slate-300 light:text-slate-700">Option B: Full Kiln
                   ID</span>
-                <span id="cascade-id-status" class="text-[10px] font-mono text-slate-400">6 digits</span>
+                <span id="cascade-id-status" class="text-[10px] font-mono text-slate-400">7 digits</span>
               </div>
               <div class="relative">
-                <input type="text" id="cascade-kiln-id" maxlength="6"
+                <input type="text" id="cascade-kiln-id" maxlength="7"
                   class="w-full px-3 py-2 bg-[#111a36] light:bg-white border border-slate-700 light:border-slate-300 rounded-lg text-xs font-mono font-bold text-amber-400 light:text-amber-600 tracking-wider focus:outline-none focus:border-amber-500"
-                  placeholder="102006" oninput="onCascadeFullIdChange()">
+                  placeholder="6816002" oninput="onCascadeFullIdChange()">
               </div>
               <div id="cascade-uniqueness-feedback" class="mt-1 text-[10px] font-mono"></div>
             </div>
 
-            <!-- Dependent Worker Unique ID Preview -->
-            <div
+            <!-- Kiln ID Calculation Preview -->
+            <div id="cascade-worker-box"
               class="p-2.5 bg-[#070d1e] light:bg-slate-200/70 border border-slate-800 light:border-slate-300 rounded-lg flex items-center justify-between">
               <div>
-                <div class="text-[10px] uppercase font-semibold tracking-wider text-slate-400 light:text-slate-600">
-                  Interrelated Worker Unique ID</div>
+                <div id="cascade-target-formula-title"
+                  class="text-[10px] uppercase font-semibold tracking-wider text-slate-400 light:text-slate-600">
+                  Calculated Kiln ID Formula</div>
                 <div id="cascade-worker-id-preview"
                   class="font-mono text-xs font-bold text-cyan-400 light:text-cyan-700 mt-0.5">
                   --
                 </div>
               </div>
               <span id="cascade-worker-suffix-badge"
-                class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 light:text-purple-700 border border-purple-500/30">
-                Zone: --
+                class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/20 text-indigo-300 light:text-indigo-700 border border-indigo-500/30">
+                Formula: dist_geocode + interviewer + id
               </span>
             </div>
           </div>
@@ -862,7 +877,15 @@
       </button>
 
       <h3 class="text-base font-bold text-white mb-1">Submission Record Details</h3>
-      <p id="inspect-modal-sub" class="text-xs font-mono text-slate-400 mb-4">uuid:--</p>
+      <p id="inspect-modal-sub" class="text-xs font-mono text-slate-400 mb-3">uuid:--</p>
+
+      <div class="mb-3 relative">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
+          <i class="fa-solid fa-filter text-xs"></i>
+        </span>
+        <input type="text" oninput="filterInspectFields(this.value)" placeholder="Search any of 307 survey fields..."
+          class="w-full pl-8 pr-3 py-1.5 bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-lg text-xs text-slate-100 light:text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500">
+      </div>
 
       <div class="max-h-96 overflow-y-auto pr-2 space-y-2" id="inspect-fields-container">
         <!-- Key value pairs loaded dynamically -->
@@ -1090,13 +1113,14 @@
       }
 
       if (filtered.length === 0) {
+        const isDbEmpty = Boolean(state.kpi && state.kpi.total_submissions === 0);
         tbody.innerHTML = `
           <tr>
             <td colspan="7" class="py-12 text-center text-slate-400">
               <div class="flex flex-col items-center justify-center space-y-2">
-                <i class="fa-solid fa-circle-check text-emerald-400 text-2xl"></i>
-                <div class="text-sm font-semibold text-slate-200 light:text-slate-800">No active findings in this category</div>
-                <div class="text-xs text-slate-500">All submissions pass validation checks or have been resolved.</div>
+                <i class="fa-solid ${isDbEmpty ? 'fa-inbox text-slate-500' : 'fa-circle-check text-emerald-400'} text-2xl"></i>
+                <div class="text-sm font-semibold text-slate-200 light:text-slate-800">${isDbEmpty ? 'No submissions loaded yet' : 'No active findings in this category'}</div>
+                <div class="text-xs text-slate-500">${isDbEmpty ? 'Click "Sync ODK Now" above to pull live survey data.' : 'All submissions pass validation checks or have been resolved.'}</div>
               </div>
             </td>
           </tr>
@@ -1164,6 +1188,10 @@
     function isKilnRelatedFinding(item) {
       if (!item) return false;
       return (
+        item.field === 'kiln_id' ||
+        item.field === 'dist_geocode' ||
+        item.field === 'interviewer' ||
+        item.field === 'id' ||
         item.field === 'kiln_unique_id' ||
         item.field === 'division' ||
         item.field === 'district' ||
@@ -1187,13 +1215,24 @@
       document.getElementById('modal-current-val').textContent = item.original_value;
       const interviewerDisplay = item.interviewer && item.interviewer !== '-' ? item.interviewer : 'N/A';
       const workerDisplay = item.worker_name && item.worker_name !== '-' ? item.worker_name : 'N/A';
-      document.getElementById('modal-worker-context').textContent = `Interviewer: ${interviewerDisplay} • Worker: ${workerDisplay}`;
+      document.getElementById('modal-worker-context').textContent = `Interviewer: ${interviewerDisplay} • Name / Owner: ${workerDisplay}`;
 
       const badge = document.getElementById('modal-severity-badge');
       badge.textContent = item.severity;
 
       // Determine existing values from record or finding
       const existingRec = state.submissions ? state.submissions.find(s => (s['meta-instanceID'] || s.instance_id || s.instanceId || s.KEY) === item.instanceID) : null;
+
+      // Detect if 7-digit Kiln ID or legacy 6-digit
+      const is7Digit = (
+        (existingRec && (existingRec.kiln_id || existingRec.dist_geocode)) ||
+        item.field === 'kiln_id' ||
+        item.field === 'dist_geocode' ||
+        (item.original_value && item.original_value.length === 7) ||
+        !existingRec ||
+        (existingRec && !existingRec.kiln_unique_id)
+      );
+      state.isCurrentFinding7Digit = is7Digit;
 
       let suffix = 'F';
       const rawWorkerUid = (existingRec && existingRec.worker_unique_id) || item.worker_unique_id || '';
@@ -1213,34 +1252,71 @@
         cascadeContainer.classList.remove('hidden');
         genericContainer.classList.add('hidden');
 
-        // Extract division, district, kiln_number
-        let div = (item.division !== undefined && item.division !== null) ? String(item.division).trim() : '';
-        let dist = (item.district !== undefined && item.district !== null) ? String(item.district).trim().padStart(2, '0') : '';
-        let kiln = (item.kiln_number !== undefined && item.kiln_number !== null) ? String(item.kiln_number).trim().padStart(3, '0') : '';
-        let fullId = item.original_value && item.original_value.length === 6 ? item.original_value : (item.kiln_unique_id || '');
+        if (is7Digit) {
+          document.getElementById('lbl-cascade-c1').textContent = 'District Geocode (2d)';
+          document.getElementById('lbl-cascade-c2').textContent = 'Interviewer (2d)';
+          document.getElementById('lbl-cascade-c3').textContent = 'Kiln ID (3d)';
+          document.getElementById('cascade-id-status').textContent = '7 digits';
+          document.getElementById('cascade-target-formula-title').textContent = 'Calculated Kiln ID Formula';
+          document.getElementById('cascade-worker-suffix-badge').textContent = 'Formula: dist_geocode + interviewer + id';
 
-        if (!div && existingRec && existingRec.division) div = String(existingRec.division).trim();
-        if (!dist && existingRec && existingRec.district) dist = String(existingRec.district).trim().padStart(2, '0');
-        if (!kiln && existingRec && existingRec.kiln_number) kiln = String(existingRec.kiln_number).trim().padStart(3, '0');
+          let dist = (existingRec && existingRec.dist_geocode) || item.dist_geocode || '';
+          let inv = (existingRec && existingRec.interviewer) || item.interviewer || '';
+          let kid = (existingRec && existingRec.id) || item.id || '';
+          let fullId = (item.original_value && item.original_value.length === 7) ? item.original_value : ((existingRec && existingRec.kiln_id) || item.kiln_id || '');
 
-        if ((!div || !dist || !kiln) && fullId && fullId.length === 6 && /^\d{6}$/.test(fullId)) {
-          div = fullId[0];
-          dist = fullId.substring(1, 3);
-          kiln = fullId.substring(3, 6);
+          if ((!dist || !inv || !kid) && fullId && fullId.length === 7 && /^\d{7}$/.test(fullId)) {
+            dist = fullId.substring(0, 2);
+            inv = fullId.substring(2, 4);
+            kid = fullId.substring(4, 7);
+          }
+
+          dist = String(dist).trim().padStart(2, '0');
+          inv = String(inv).trim().padStart(2, '0');
+          kid = String(kid).trim().padStart(3, '0');
+          if (!fullId && dist && inv && kid) fullId = `${dist}${inv}${kid}`;
+
+          document.getElementById('cascade-division').value = dist || '68';
+          document.getElementById('cascade-district').value = inv || '16';
+          document.getElementById('cascade-kiln-number').value = kid || '002';
+          document.getElementById('cascade-kiln-id').value = fullId || `${dist || '68'}${inv || '16'}${kid || '002'}`;
+          document.getElementById('cascade-worker-id-preview').textContent = document.getElementById('cascade-kiln-id').value;
+          checkKilnIdUniqueness(document.getElementById('cascade-kiln-id').value, item.instanceID);
+
+        } else {
+          document.getElementById('lbl-cascade-c1').textContent = 'Division (1 digit)';
+          document.getElementById('lbl-cascade-c2').textContent = 'District (2 digits)';
+          document.getElementById('lbl-cascade-c3').textContent = 'Kiln No. (3 digits)';
+          document.getElementById('cascade-id-status').textContent = '6 digits';
+          document.getElementById('cascade-target-formula-title').textContent = 'Interrelated Worker Unique ID';
+          document.getElementById('cascade-worker-suffix-badge').textContent = `Zone Suffix: _${suffix}`;
+
+          let div = (item.division !== undefined && item.division !== null) ? String(item.division).trim() : '';
+          let dist = (item.district !== undefined && item.district !== null) ? String(item.district).trim().padStart(2, '0') : '';
+          let kiln = (item.kiln_number !== undefined && item.kiln_number !== null) ? String(item.kiln_number).trim().padStart(3, '0') : '';
+          let fullId = item.original_value && item.original_value.length === 6 ? item.original_value : (item.kiln_unique_id || '');
+
+          if (!div && existingRec && existingRec.division) div = String(existingRec.division).trim();
+          if (!dist && existingRec && existingRec.district) dist = String(existingRec.district).trim().padStart(2, '0');
+          if (!kiln && existingRec && existingRec.kiln_number) kiln = String(existingRec.kiln_number).trim().padStart(3, '0');
+
+          if ((!div || !dist || !kiln) && fullId && fullId.length === 6 && /^\d{6}$/.test(fullId)) {
+            div = fullId[0];
+            dist = fullId.substring(1, 3);
+            kiln = fullId.substring(3, 6);
+          }
+
+          if (!fullId && div && dist && kiln) {
+            fullId = `${div}${dist.padStart(2, '0')}${kiln.padStart(3, '0')}`;
+          }
+
+          document.getElementById('cascade-division').value = div || '1';
+          document.getElementById('cascade-district').value = dist || '02';
+          document.getElementById('cascade-kiln-number').value = kiln || '006';
+          document.getElementById('cascade-kiln-id').value = fullId || `${div || '1'}${dist || '02'}${kiln || '006'}`;
+          document.getElementById('cascade-worker-id-preview').textContent = `${document.getElementById('cascade-kiln-id').value}_${suffix}`;
+          checkKilnIdUniqueness(document.getElementById('cascade-kiln-id').value, item.instanceID);
         }
-
-        if (!fullId && div && dist && kiln) {
-          fullId = `${div}${dist.padStart(2, '0')}${kiln.padStart(3, '0')}`;
-        }
-
-        document.getElementById('cascade-division').value = div || '1';
-        document.getElementById('cascade-district').value = dist || '02';
-        document.getElementById('cascade-kiln-number').value = kiln || '006';
-        document.getElementById('cascade-kiln-id').value = fullId || `${div || '1'}${dist || '02'}${kiln || '006'}`;
-        document.getElementById('cascade-worker-suffix-badge').textContent = `Zone Suffix: _${suffix}`;
-        document.getElementById('cascade-worker-id-preview').textContent = `${document.getElementById('cascade-kiln-id').value}_${suffix}`;
-
-        checkKilnIdUniqueness(document.getElementById('cascade-kiln-id').value, item.instanceID);
       } else {
         cascadeContainer.classList.add('hidden');
         genericContainer.classList.remove('hidden');
@@ -1251,7 +1327,7 @@
 
       document.getElementById('approve-note').value = '';
       document.getElementById('edit-reason-input').value = isKiln
-        ? 'Kiln ID and worker ID corrected to resolve duplicate and maintain structural integrity.'
+        ? (is7Digit ? 'Kiln ID structure and components corrected to resolve duplicate and formula mismatch.' : 'Kiln ID and worker ID corrected to resolve duplicate and maintain structural integrity.')
         : 'Value verified and corrected by reviewer.';
 
       // Default to approve tab
@@ -1263,59 +1339,95 @@
 
     // Cascade Event Handlers
     function onCascadeComponentChange() {
-      const divInput = document.getElementById('cascade-division');
-      const distInput = document.getElementById('cascade-district');
-      const kilnInput = document.getElementById('cascade-kiln-number');
+      const c1Input = document.getElementById('cascade-division');
+      const c2Input = document.getElementById('cascade-district');
+      const c3Input = document.getElementById('cascade-kiln-number');
 
-      // Keep only digits
-      divInput.value = divInput.value.replace(/\D/g, '').slice(0, 1);
-      distInput.value = distInput.value.replace(/\D/g, '').slice(0, 2);
-      kilnInput.value = kilnInput.value.replace(/\D/g, '').slice(0, 3);
+      if (state.isCurrentFinding7Digit) {
+        c1Input.value = c1Input.value.replace(/\D/g, '').slice(0, 2);
+        c2Input.value = c2Input.value.replace(/\D/g, '').slice(0, 2);
+        c3Input.value = c3Input.value.replace(/\D/g, '').slice(0, 3);
 
-      const div = divInput.value.trim() || '1';
-      const dist = distInput.value.trim().padStart(2, '0');
-      const kiln = kilnInput.value.trim().padStart(3, '0');
+        const dist = c1Input.value.trim() || '68';
+        const inv = c2Input.value.trim().padStart(2, '0');
+        const id = c3Input.value.trim().padStart(3, '0');
+        const fullId = `${dist}${inv}${id}`;
 
-      const fullId = `${div}${dist}${kiln}`;
-      const kilnIdInput = document.getElementById('cascade-kiln-id');
-      kilnIdInput.value = fullId;
+        const kilnIdInput = document.getElementById('cascade-kiln-id');
+        kilnIdInput.value = fullId;
+        document.getElementById('cascade-worker-id-preview').textContent = fullId;
 
-      const suffix = state.currentJobZoneSuffix || 'F';
-      document.getElementById('cascade-worker-id-preview').textContent = `${fullId}_${suffix}`;
+        const statusEl = document.getElementById('cascade-id-status');
+        statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 7 digits</span>';
 
-      const statusEl = document.getElementById('cascade-id-status');
-      statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 6 digits</span>';
+        checkKilnIdUniqueness(fullId, state.selectedFinding ? state.selectedFinding.instanceID : null);
+      } else {
+        c1Input.value = c1Input.value.replace(/\D/g, '').slice(0, 1);
+        c2Input.value = c2Input.value.replace(/\D/g, '').slice(0, 2);
+        c3Input.value = c3Input.value.replace(/\D/g, '').slice(0, 3);
 
-      checkKilnIdUniqueness(fullId, state.selectedFinding ? state.selectedFinding.instanceID : null);
+        const div = c1Input.value.trim() || '1';
+        const dist = c2Input.value.trim().padStart(2, '0');
+        const kiln = c3Input.value.trim().padStart(3, '0');
+        const fullId = `${div}${dist}${kiln}`;
+
+        const kilnIdInput = document.getElementById('cascade-kiln-id');
+        kilnIdInput.value = fullId;
+
+        const suffix = state.currentJobZoneSuffix || 'F';
+        document.getElementById('cascade-worker-id-preview').textContent = `${fullId}_${suffix}`;
+
+        const statusEl = document.getElementById('cascade-id-status');
+        statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 6 digits</span>';
+
+        checkKilnIdUniqueness(fullId, state.selectedFinding ? state.selectedFinding.instanceID : null);
+      }
     }
 
     function onCascadeFullIdChange() {
       const kilnIdInput = document.getElementById('cascade-kiln-id');
-      kilnIdInput.value = kilnIdInput.value.replace(/\D/g, '').slice(0, 6);
+      const maxLen = state.isCurrentFinding7Digit ? 7 : 6;
+      kilnIdInput.value = kilnIdInput.value.replace(/\D/g, '').slice(0, maxLen);
       const val = kilnIdInput.value.trim();
-
-      const suffix = state.currentJobZoneSuffix || 'F';
       const statusEl = document.getElementById('cascade-id-status');
 
-      if (val.length === 6) {
-        document.getElementById('cascade-division').value = val[0];
-        document.getElementById('cascade-district').value = val.substring(1, 3);
-        document.getElementById('cascade-kiln-number').value = val.substring(3, 6);
-        document.getElementById('cascade-worker-id-preview').textContent = `${val}_${suffix}`;
-        statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 6 digits</span>';
-        checkKilnIdUniqueness(val, state.selectedFinding ? state.selectedFinding.instanceID : null);
+      if (state.isCurrentFinding7Digit) {
+        if (val.length === 7) {
+          document.getElementById('cascade-division').value = val.substring(0, 2);
+          document.getElementById('cascade-district').value = val.substring(2, 4);
+          document.getElementById('cascade-kiln-number').value = val.substring(4, 7);
+          document.getElementById('cascade-worker-id-preview').textContent = val;
+          statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 7 digits</span>';
+          checkKilnIdUniqueness(val, state.selectedFinding ? state.selectedFinding.instanceID : null);
+        } else {
+          document.getElementById('cascade-worker-id-preview').textContent = val || '--';
+          statusEl.innerHTML = `<span class="text-amber-400 font-semibold">${val.length}/7 digits</span>`;
+          const fb = document.getElementById('cascade-uniqueness-feedback');
+          if (fb) fb.innerHTML = '<span class="text-slate-400">Enter complete 7 digits to auto-breakdown</span>';
+        }
       } else {
-        document.getElementById('cascade-worker-id-preview').textContent = `${val || '--'}_${suffix}`;
-        statusEl.innerHTML = `<span class="text-amber-400 font-semibold">${val.length}/6 digits</span>`;
-        const fb = document.getElementById('cascade-uniqueness-feedback');
-        if (fb) fb.innerHTML = '<span class="text-slate-400">Enter complete 6 digits to auto-breakdown</span>';
+        const suffix = state.currentJobZoneSuffix || 'F';
+        if (val.length === 6) {
+          document.getElementById('cascade-division').value = val[0];
+          document.getElementById('cascade-district').value = val.substring(1, 3);
+          document.getElementById('cascade-kiln-number').value = val.substring(3, 6);
+          document.getElementById('cascade-worker-id-preview').textContent = `${val}_${suffix}`;
+          statusEl.innerHTML = '<span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check"></i> 6 digits</span>';
+          checkKilnIdUniqueness(val, state.selectedFinding ? state.selectedFinding.instanceID : null);
+        } else {
+          document.getElementById('cascade-worker-id-preview').textContent = `${val || '--'}_${suffix}`;
+          statusEl.innerHTML = `<span class="text-amber-400 font-semibold">${val.length}/6 digits</span>`;
+          const fb = document.getElementById('cascade-uniqueness-feedback');
+          if (fb) fb.innerHTML = '<span class="text-slate-400">Enter complete 6 digits to auto-breakdown</span>';
+        }
       }
     }
 
     function checkKilnIdUniqueness(fullId, currentInstId) {
       const fb = document.getElementById('cascade-uniqueness-feedback');
       if (!fb) return;
-      if (!fullId || fullId.length !== 6) {
+      const expectedLen = state.isCurrentFinding7Digit ? 7 : 6;
+      if (!fullId || fullId.length !== expectedLen) {
         fb.innerHTML = '';
         return;
       }
@@ -1326,7 +1438,7 @@
       }
 
       const collisions = state.submissions.filter(s => {
-        const k = s.kiln_unique_id || (s.data && s.data.kiln_unique_id);
+        const k = s.kiln_id || s.kiln_unique_id || (s.data && (s.data.kiln_id || s.data.kiln_unique_id));
         const inst = s['meta-instanceID'] || s.instance_id || s.instanceId || s.KEY;
         return String(k).trim() === String(fullId).trim() && inst !== currentInstId;
       });
@@ -1334,7 +1446,7 @@
       if (collisions.length > 0) {
         fb.innerHTML = `<span class="text-amber-400 flex items-center space-x-1.5 font-medium"><i class="fa-solid fa-triangle-exclamation"></i> <span>Warning: Kiln ID ${fullId} is already in use by ${collisions.length} other record(s)</span></span>`;
       } else {
-        fb.innerHTML = `<span class="text-emerald-400 flex items-center space-x-1.5 font-medium"><i class="fa-solid fa-circle-check"></i> <span>Unique Kiln ID! Resolves duplicate collision.</span></span>`;
+        fb.innerHTML = `<span class="text-emerald-400 flex items-center space-x-1.5 font-medium"><i class="fa-solid fa-circle-check"></i> <span>Unique Kiln ID! Valid and collision-free.</span></span>`;
       }
     }
 
@@ -1385,27 +1497,49 @@
 
       if (!isApprove) {
         if (isKiln) {
-          const divVal = parseInt(document.getElementById('cascade-division').value, 10);
-          const distVal = document.getElementById('cascade-district').value.trim().padStart(2, '0');
-          const kilnVal = document.getElementById('cascade-kiln-number').value.trim().padStart(3, '0');
-          const kilnIdVal = document.getElementById('cascade-kiln-id').value.trim();
+          if (state.isCurrentFinding7Digit) {
+            const distVal = document.getElementById('cascade-division').value.trim().padStart(2, '0');
+            const invVal = document.getElementById('cascade-district').value.trim().padStart(2, '0');
+            const idVal = document.getElementById('cascade-kiln-number').value.trim().padStart(3, '0');
+            const kilnIdVal = document.getElementById('cascade-kiln-id').value.trim();
 
-          if (kilnIdVal.length !== 6 || !/^\d{6}$/.test(kilnIdVal)) {
-            showToast('Please provide a complete 6-digit Kiln ID (e.g. 102007)', 'error');
-            btn.disabled = false;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Save Correction & Resolve</span>';
-            return;
+            if (kilnIdVal.length !== 7 || !/^\d{7}$/.test(kilnIdVal)) {
+              showToast('Please provide a complete 7-digit Kiln ID (e.g. 6816002)', 'error');
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Save Correction & Resolve</span>';
+              return;
+            }
+
+            newFieldVal = kilnIdVal;
+            cascadingUpdates = {
+              dist_geocode: distVal,
+              interviewer: invVal,
+              id: idVal,
+              kiln_id: kilnIdVal
+            };
+          } else {
+            const divVal = parseInt(document.getElementById('cascade-division').value, 10);
+            const distVal = document.getElementById('cascade-district').value.trim().padStart(2, '0');
+            const kilnVal = document.getElementById('cascade-kiln-number').value.trim().padStart(3, '0');
+            const kilnIdVal = document.getElementById('cascade-kiln-id').value.trim();
+
+            if (kilnIdVal.length !== 6 || !/^\d{6}$/.test(kilnIdVal)) {
+              showToast('Please provide a complete 6-digit Kiln ID (e.g. 102007)', 'error');
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fa-solid fa-check"></i> <span>Save Correction & Resolve</span>';
+              return;
+            }
+
+            const workerIdVal = `${kilnIdVal}_${state.currentJobZoneSuffix || 'F'}`;
+            newFieldVal = kilnIdVal;
+            cascadingUpdates = {
+              division: isNaN(divVal) ? 1 : divVal,
+              district: distVal,
+              kiln_number: kilnVal,
+              kiln_unique_id: kilnIdVal,
+              worker_unique_id: workerIdVal
+            };
           }
-
-          const workerIdVal = `${kilnIdVal}_${state.currentJobZoneSuffix || 'F'}`;
-          newFieldVal = kilnIdVal;
-          cascadingUpdates = {
-            division: isNaN(divVal) ? 1 : divVal,
-            district: distVal,
-            kiln_number: kilnVal,
-            kiln_unique_id: kilnIdVal,
-            worker_unique_id: workerIdVal
-          };
         } else {
           newFieldVal = document.getElementById('edit-field-input').value;
         }
@@ -1486,13 +1620,73 @@
       }
     }
 
+    // Purge Sample Data
+    async function clearSampleData() {
+      if (!confirm('Are you sure you want to purge all sample / benchmark submissions from the database?')) return;
+      try {
+        const resp = await fetch('/api/clear-sample-data', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          showToast(data.message || 'Sample data purged successfully', 'success');
+          await loadDashboardData();
+        } else {
+          showToast(data.detail || 'Failed to purge sample data', 'error');
+        }
+      } catch (err) {
+        showToast('Network error while clearing sample data', 'error');
+      }
+    }
+
+    // Purge Sample Data
+    async function clearSampleData() {
+      if (!confirm('Are you sure you want to purge all sample / benchmark submissions from the database?')) return;
+      try {
+        const resp = await fetch('/api/clear-sample-data', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          showToast(data.message || 'Sample data purged successfully', 'success');
+          await loadDashboardData();
+        } else {
+          showToast(data.detail || 'Failed to purge sample data', 'error');
+        }
+      } catch (err) {
+        showToast('Network error while clearing sample data', 'error');
+      }
+    }
+
+    // Reset All Data (Completely wipe Mongo & local cache)
+    async function resetAllData() {
+      if (!confirm('WARNING: Are you sure you want to RESET ALL DATA? This will permanently wipe all raw submissions, clean submissions, and audit logs to prepare for fresh ODK synchronization.')) return;
+      try {
+        const resp = await fetch('/api/reset-all-data', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        const data = await resp.json();
+        if (resp.ok) {
+          showToast(data.message || 'All data reset successfully.', 'success');
+          await loadDashboardData();
+        } else {
+          showToast(data.detail || 'Failed to reset data', 'error');
+        }
+      } catch (err) {
+        showToast('Network error while resetting data', 'error');
+      }
+    }
+
     // Submissions Registry
     async function loadSubmissionsRegistry() {
       try {
         const search = document.getElementById('registry-search') ? document.getElementById('registry-search').value : '';
-        const zone = document.getElementById('registry-zone-filter') ? document.getElementById('registry-zone-filter').value : 'all';
+        const consent = document.getElementById('registry-consent-filter') ? document.getElementById('registry-consent-filter').value : 'all';
 
-        const q = new URLSearchParams({ search, job_zone: zone, limit: 100 });
+        const q = new URLSearchParams({ search, consent, limit: 100 });
         const resp = await fetch(`/api/submissions?${q.toString()}`, {
           headers: { 'Authorization': `Bearer ${state.token}` }
         });
@@ -1515,30 +1709,40 @@
     function renderRegistryTable(records) {
       const tbody = document.getElementById('registry-table-body');
       if (!records || records.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="12" class="py-8 text-center text-slate-400">No matching submissions found</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="11" class="py-8 text-center text-slate-400">No matching submissions found</td></tr>`;
         return;
       }
 
       tbody.innerHTML = records.map(r => {
-        const instId = r['meta-instanceID'] || r.instanceId || r.KEY || '-';
-        const dateStr = r.survey_date || (r.SubmissionDate ? r.SubmissionDate.split('T')[0] : '-');
+        const instId = r['meta-instanceID'] || r.instanceId || r.KEY || r.instanceID || '-';
+        const dateStr = r.collection_date || r.survey_date || (r.SubmissionDate ? r.SubmissionDate.split('T')[0] : '-');
         const safeId = encodeURIComponent(instId);
+
+        const kilnId = r.kiln_id || r.kiln_unique_id || '-';
+        const kilnName = r.kiln_name || '-';
+        const ownerName = r.kiln_owner_name || r.worker_name || '-';
+        const ownerPhone = r.kiln_owner_phone || '-';
+        const location = r.kiln_upazila_label || r.kiln_upazila || r.kiln_district || (r.district ? `Dist: ${r.district}` : '-');
+        const age = r.kiln_owner_age_years ?? r.worker_age ?? '-';
+        const exp = r.kiln_owner_experience_years ?? r.experience_years ?? '-';
+        const prod = r['target_brick_production_2025-2026'] || r.target_brick_production_2025_2026 || '-';
+        const consent = String(r.consent || r['consent_taking-consent'] || 'yes').toLowerCase();
+        const consentBadge = consent === 'yes'
+          ? '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold">Yes</span>'
+          : '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-semibold">No</span>';
 
         return `
           <tr class="hover:bg-slate-800/40 light:hover:bg-slate-50 transition border-b border-[#1e293b] light:border-slate-200">
             <td class="py-2.5 px-3 text-slate-400 font-mono text-[11px] whitespace-nowrap">${dateStr}</td>
-            <td class="py-2.5 px-3 font-mono font-semibold text-indigo-400 whitespace-nowrap">${r.kiln_unique_id || '-'}</td>
-            <td class="py-2.5 px-3 font-medium text-slate-200 light:text-slate-900 whitespace-nowrap">${r.worker_name || '-'}</td>
-            <td class="py-2.5 px-3 whitespace-nowrap">${r.worker_age || '-'}</td>
-            <td class="py-2.5 px-3 whitespace-nowrap capitalize"><span class="px-2 py-0.5 rounded bg-slate-800 light:bg-slate-200 text-[10px] font-medium">${r.job_zone || '-'}</span></td>
-            <td class="py-2.5 px-3 font-mono text-slate-300 light:text-slate-700 whitespace-nowrap">${r.worker_unique_id || '-'}</td>
-            <td class="py-2.5 px-3 whitespace-nowrap">${r.daily_hours || '-'}h</td>
-            <td class="py-2.5 px-3 whitespace-nowrap text-slate-300 light:text-slate-700 truncate max-w-xs">${r.ppe_used || 'none'}</td>
-            <td class="py-2.5 px-3 whitespace-nowrap">${r.resp_symptoms || '-'}</td>
-            <td class="py-2.5 px-3 whitespace-nowrap text-[11px]">
-              <span class="text-rose-400">${r.heat_exhaustion || 'no'}</span> / <span class="text-emerald-400">${r.medical_aid_access || 'no'}</span>
-            </td>
-            <td class="py-2.5 px-3 whitespace-nowrap font-mono">৳${r.monthly_income || '-'}</td>
+            <td class="py-2.5 px-3 font-mono font-semibold text-indigo-400 whitespace-nowrap">${kilnId}</td>
+            <td class="py-2.5 px-3 font-medium text-slate-200 light:text-slate-900 whitespace-nowrap">${kilnName}</td>
+            <td class="py-2.5 px-3 font-medium text-slate-300 light:text-slate-800 whitespace-nowrap">${ownerName}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-300 light:text-slate-700 whitespace-nowrap">${ownerPhone}</td>
+            <td class="py-2.5 px-3 text-slate-300 light:text-slate-700 whitespace-nowrap">${location}</td>
+            <td class="py-2.5 px-3 whitespace-nowrap font-mono">${age}</td>
+            <td class="py-2.5 px-3 whitespace-nowrap font-mono">${exp}</td>
+            <td class="py-2.5 px-3 whitespace-nowrap font-mono text-amber-400 light:text-amber-600">${prod}</td>
+            <td class="py-2.5 px-3 text-center whitespace-nowrap">${consentBadge}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">
               <button onclick="inspectRecord('${safeId}')" class="p-1.5 text-slate-400 hover:text-indigo-400 rounded hover:bg-slate-800 transition" title="Inspect full record">
                 <i class="fa-solid fa-eye text-xs"></i>
@@ -1551,21 +1755,36 @@
 
     function inspectRecord(encodedId) {
       const instId = decodeURIComponent(encodedId);
-      const rec = state.submissions.find(s => (s['meta-instanceID'] || s.instanceId || s.KEY) === instId);
+      const rec = state.submissions.find(s => (s['meta-instanceID'] || s.instanceId || s.KEY || s.instanceID) === instId);
       if (!rec) return;
 
       document.getElementById('inspect-modal-sub').textContent = instId;
-      const container = document.getElementById('inspect-fields-container');
+      window._currentInspectRecord = rec;
+      renderInspectFields('');
+      document.getElementById('inspect-modal').showModal();
+    }
 
+    function filterInspectFields(query) {
+      renderInspectFields(query);
+    }
+
+    function renderInspectFields(query) {
+      const rec = window._currentInspectRecord;
+      if (!rec) return;
+      const container = document.getElementById('inspect-fields-container');
+      const q = (query || '').toLowerCase().trim();
       const fields = Object.entries(rec).filter(([k]) => !k.startsWith('_'));
-      container.innerHTML = fields.map(([k, v]) => `
+      const filtered = q ? fields.filter(([k, v]) => k.toLowerCase().includes(q) || String(v).toLowerCase().includes(q)) : fields;
+
+      container.innerHTML = filtered.map(([k, v]) => `
         <div class="flex items-center justify-between p-2 rounded bg-[#0d1527] light:bg-slate-100 border border-slate-800 light:border-slate-300 text-xs">
-          <span class="font-mono text-slate-400">${k}</span>
-          <span class="font-mono font-medium text-slate-200 light:text-slate-900 truncate max-w-sm">${String(v)}</span>
+          <span class="font-mono text-slate-400 select-all">${k}</span>
+          <span class="font-mono font-medium text-slate-200 light:text-slate-900 truncate max-w-sm select-all">${String(v)}</span>
         </div>
       `).join('');
-
-      document.getElementById('inspect-modal').showModal();
+      if (filtered.length === 0) {
+        container.innerHTML = `<div class="text-center py-6 text-slate-500 text-xs">No matching survey fields found</div>`;
+      }
     }
 
     // Load Sync Logs
