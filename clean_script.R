@@ -68,6 +68,10 @@ if (is_baseline_2026) {
       owner_age_num = as.numeric(kiln_owner_age_years),
       flag_age_boundary = (!is.na(owner_age_num) & (owner_age_num < 18 | owner_age_num > 70)),
       
+      # Rule 7: Daily Average Green Brick Production Capacity (<1000 or >100000)
+      daily_prod_num = as.numeric(daily_green_brick_production),
+      flag_daily_green_brick_production = (!is.na(daily_prod_num) & (daily_prod_num < 1000 | daily_prod_num > 100000)),
+      
       flag_health_conflict = FALSE,
       flag_extreme_hours = FALSE
     )
@@ -189,6 +193,23 @@ for (i in seq_len(nrow(df_validated))) {
         stringsAsFactors = FALSE
       )
     }
+  }
+  
+  if (isTRUE(row$flag_daily_green_brick_production)) {
+    prod_val <- as.numeric(row$daily_green_brick_production)
+    issue_msg <- if (prod_val < 1000) {
+      sprintf("Daily Average Green Brick Production Capacity Below Standard Range (<1000: reported %s bricks/day)", as.character(row$daily_green_brick_production))
+    } else {
+      sprintf("Daily Average Green Brick Production Capacity Above Standard Range (>100000: reported %s bricks/day)", as.character(row$daily_green_brick_production))
+    }
+    findings_list[[length(findings_list) + 1]] <- data.frame(
+      severity = "REVIEW_FLAG",
+      instanceID = inst_id,
+      field = "daily_green_brick_production",
+      original_value = as.character(row$daily_green_brick_production),
+      detected_issue = issue_msg,
+      stringsAsFactors = FALSE
+    )
   }
   
   if (isTRUE(row$flag_health_conflict)) {

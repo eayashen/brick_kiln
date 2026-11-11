@@ -731,13 +731,13 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
         # ----------------------------------------------------------------------
         # Rule 4: Age Boundary Check (REVIEW_FLAG)
         # ----------------------------------------------------------------------
-        # Kiln Owner Age: < 18 or > 70
+        # Kiln Owner Age: < 18 or > 80
         rule_age = "rule_age_boundary"
         raw_owner_age = doc.get("kiln_owner_age_years")
         if raw_owner_age is not None and str(raw_owner_age).strip() != "":
             try:
                 age_val = float(raw_owner_age)
-                if age_val < 18 or age_val > 70:
+                if age_val < 18 or age_val > 80:
                     if rule_age not in resolved_flags:
                         records_with_unresolved_issues.add(inst_id)
                         append_finding({
@@ -748,7 +748,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                             "instanceID": inst_id,
                             "field": "kiln_owner_age_years",
                             "original_value": str(int(age_val) if age_val.is_integer() else age_val),
-                            "detected_issue": f"Kiln Owner Age Out of Standard Range (<18 or >70: reported {int(age_val)} yrs)",
+                            "detected_issue": f"Kiln Owner Age Out of Standard Range (<18 or >80: reported {int(age_val)} yrs)",
                             "status": "Active"
                         })
             except (ValueError, TypeError):
@@ -794,6 +794,38 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                             "field": "daily_hours",
                             "original_value": str(hrs),
                             "detected_issue": f"Extreme Daily Work Hours ({hrs} hrs/day exceeds 12-hour threshold)",
+                            "status": "Active"
+                        })
+            except (ValueError, TypeError):
+                pass
+
+        # ----------------------------------------------------------------------
+        # Rule 7: Daily Average Green Brick Production Capacity (REVIEW_FLAG)
+        # ----------------------------------------------------------------------
+        rule_prod = "rule_daily_green_brick_production"
+        raw_prod = doc.get("daily_green_brick_production")
+        if raw_prod is not None and str(raw_prod).strip() != "":
+            try:
+                prod_val = float(raw_prod)
+                prod_disp = str(int(prod_val) if prod_val.is_integer() else prod_val)
+                issue_msg = None
+                if prod_val < 1000:
+                    issue_msg = f"Daily Average Green Brick Production Capacity Below Standard Range (<1000: reported {prod_disp} bricks/day)"
+                elif prod_val > 80000:
+                    issue_msg = f"Daily Average Green Brick Production Capacity Above Standard Range (>80000: reported {prod_disp} bricks/day)"
+
+                if issue_msg:
+                    if rule_prod not in resolved_flags:
+                        records_with_unresolved_issues.add(inst_id)
+                        append_finding({
+                            "finding_id": f"{inst_id}_{rule_prod}",
+                            "rule_key": rule_prod,
+                            "severity": "REVIEW_FLAG",
+                            "category": "reviews",
+                            "instanceID": inst_id,
+                            "field": "daily_green_brick_production",
+                            "original_value": prod_disp,
+                            "detected_issue": issue_msg,
                             "status": "Active"
                         })
             except (ValueError, TypeError):
@@ -1070,7 +1102,7 @@ async def api_resolve_finding(payload: ResolveFindingRequest, user: Dict[str, An
             if payload.field in [
                 "kiln_owner_age_years", "worker_age", 
                 "kiln_owner_experience_years", "experience_years", 
-                "daily_hours", "monthly_income"
+                "daily_hours", "monthly_income", "daily_green_brick_production"
             ]:
                 try:
                     new_val = float(new_val) if "." in str(new_val) else int(new_val)

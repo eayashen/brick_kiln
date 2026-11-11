@@ -1,1 +1,2 @@
 severity,instanceID,field,original_value,detected_issue
+REVIEW_FLAG,uuid:ee369f2d-06b9-4c91-bae9-279abbd11000,daily_green_brick_production,50,Daily Average Green Brick Production Capacity Below Standard Range (<1000: reported 50 bricks/day)
