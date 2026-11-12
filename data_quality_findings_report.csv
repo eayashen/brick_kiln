@@ -1,2 +1,15 @@
 severity,instanceID,field,original_value,detected_issue
+REVIEW_FLAG,uuid:a1bee019-164c-4c94-b7c4-a2903b46bdf4,annual_production_delta_count_bricks_2024_2025,2000000,Annual Production Difference (2024–2025) Above Expected Range (>1000000: reported 2000000 bricks)
+REVIEW_FLAG,uuid:a1bee019-164c-4c94-b7c4-a2903b46bdf4,annual_production_delta_count_bricks_2023_2024,1300000,Annual Production Difference (2023–2024) Above Expected Range (>1000000: reported 1300000 bricks)
+REVIEW_FLAG,uuid:81c1c578-530a-47cb-99f2-66a1f916e1f3,annual_production_delta_count_bricks_2024_2025,1600000,Annual Production Difference (2024–2025) Above Expected Range (>1000000: reported 1600000 bricks)
+ERROR,uuid:1aaec8f5-db6a-43cf-890a-019f741949fc,interviewer,26,"Submitter Name and Interviewer Code Mismatch: Interviewer Code 26 is assigned to Md. Mominul Haque, but the submission was submitted under Md. Monjurul Haque."
+REVIEW_FLAG,uuid:1aaec8f5-db6a-43cf-890a-019f741949fc,annual_production_delta_count_bricks_2023_2024,1200000,Annual Production Difference (2023–2024) Above Expected Range (>1000000: reported 1200000 bricks)
+REVIEW_FLAG,uuid:5168facc-0af0-43e3-a021-53616fa19a35,annual_production_delta_count_bricks_2024_2025,2000000,Annual Production Difference (2024–2025) Above Expected Range (>1000000: reported 2000000 bricks)
+REVIEW_FLAG,uuid:5168facc-0af0-43e3-a021-53616fa19a35,annual_production_delta_count_bricks_2023_2024,2000000,Annual Production Difference (2023–2024) Above Expected Range (>1000000: reported 2000000 bricks)
+ERROR,uuid:7aebab24-b6ef-482a-894d-87ead0969d78,interviewer,26,"Submitter Name and Interviewer Code Mismatch: Interviewer Code 26 is assigned to Md. Mominul Haque, but the submission was submitted under Md. Monjurul Haque."
+ERROR,uuid:167a93b2-a885-4c15-80c6-4b1623cfb678,interviewer,16,"Submitter Name and Interviewer Code Mismatch: Interviewer Code 16 is assigned to Nitai Chandro Roy, but the submission was submitted under Farid Ahmed Chowdhury."
+ERROR,uuid:79ccf8b1-fadf-4c36-89b5-45aa72613736,interviewer,16,"Submitter Name and Interviewer Code Mismatch: Interviewer Code 16 is assigned to Nitai Chandro Roy, but the submission was submitted under Farid Ahmed Chowdhury."
+ERROR,uuid:ee369f2d-06b9-4c91-bae9-279abbd11000,interviewer,18,"Submitter Name and Interviewer Code Mismatch: Interviewer Code 18 is assigned to Md. Sazzad Hossain, but the submission was submitted under Aunga Bhusan Chakraborty."
 REVIEW_FLAG,uuid:ee369f2d-06b9-4c91-bae9-279abbd11000,daily_green_brick_production,50,Daily Average Green Brick Production Capacity Below Standard Range (<1000: reported 50 bricks/day)
+REVIEW_FLAG,uuid:088ad2b5-949e-411e-9328-67ea7592f9d1,annual_production_delta_count_bricks_2024_2025,1500000,Annual Production Difference (2024–2025) Above Expected Range (>1000000: reported 1500000 bricks)
+REVIEW_FLAG,uuid:088ad2b5-949e-411e-9328-67ea7592f9d1,annual_production_delta_count_bricks_2023_2024,1500000,Annual Production Difference (2023–2024) Above Expected Range (>1000000: reported 1500000 bricks)

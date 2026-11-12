@@ -1,9 +1,10 @@
 import os
 import re
+import csv
 import json
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union, Tuple
 
 import requests
 import pandas as pd
@@ -45,6 +46,71 @@ PORT = int(os.getenv("PORT", 8000))
 # Load Dashboard user passwords from environment variables (.env)
 DASHBOARD_ADMIN_PASSWORD = os.getenv("DASHBOARD_ADMIN_PASSWORD", "kiln1234")
 DASHBOARD_REVIEWER_PASSWORD = os.getenv("DASHBOARD_REVIEWER_PASSWORD", "kiln4321")
+
+# Rule 3 External Reference Mapping Configuration
+RULE3_CSV_PATH = os.getenv("RULE3_CSV_PATH", os.path.join(os.path.dirname(__file__), "Rule3.csv"))
+
+_rule3_cache: Dict[str, Any] = {
+    "mtime": 0.0,
+    "path": "",
+    "mapping": {},
+    "error": None
+}
+
+def load_rule3_mapping(file_path: Optional[str] = None) -> Tuple[Dict[str, str], Optional[str]]:
+    """
+    Loads interviewer -> SubmitterName mapping from Rule3.csv.
+    Caches mapping based on file mtime so updates are detected dynamically.
+    Returns (mapping_dict, error_message).
+    """
+    global _rule3_cache
+    target_path = file_path or RULE3_CSV_PATH
+
+    if not os.path.exists(target_path):
+        err = f"Configuration Error: Reference mapping file '{os.path.basename(target_path)}' not found at {target_path}."
+        logger.error(err)
+        return {}, err
+
+    try:
+        current_mtime = os.path.getmtime(target_path)
+        if _rule3_cache["path"] == target_path and _rule3_cache["mtime"] == current_mtime and _rule3_cache["mapping"]:
+            return _rule3_cache["mapping"], None
+
+        mapping: Dict[str, str] = {}
+        with open(target_path, mode="r", encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            fieldnames = [fn.strip() for fn in (reader.fieldnames or [])]
+            for col in ["interviewer", "SubmitterName"]:
+                if col not in fieldnames:
+                    err = f"Configuration Error: Required column '{col}' missing from {os.path.basename(target_path)}. Available columns: {fieldnames}"
+                    logger.error(err)
+                    return {}, err
+
+            for row in reader:
+                raw_inv = row.get("interviewer")
+                raw_name = row.get("SubmitterName")
+                if not raw_inv or str(raw_inv).strip() == "":
+                    continue
+                inv_str = str(raw_inv).strip()
+                name_str = str(raw_name).strip() if raw_name else ""
+                mapping[inv_str] = name_str
+                if inv_str.isdigit():
+                    mapping[f"{int(inv_str):02d}"] = name_str
+                    mapping[str(int(inv_str))] = name_str
+
+        _rule3_cache = {
+            "mtime": current_mtime,
+            "path": target_path,
+            "mapping": mapping,
+            "error": None
+        }
+        logger.info("Successfully loaded %d interviewer mappings from %s", len(mapping), target_path)
+        return mapping, None
+
+    except Exception as e:
+        err = f"Configuration Error: Failed to parse {os.path.basename(target_path)}: {str(e)}"
+        logger.exception(err)
+        return {}, err
 
 # User credentials with hashed passwords loaded from environment variables
 USERS_DB = {
@@ -590,6 +656,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     corrected_records_count = 0
     records_with_unresolved_issues = set()
+    rule3_mapping, rule3_cfg_error = load_rule3_mapping()
 
     for doc in submissions:
         inst_id = (
@@ -706,38 +773,102 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                 })
 
         # ----------------------------------------------------------------------
-        # Rule 3: Worker ID Structure Mismatch (ERROR - Historical Only)
+        # Rule 3: Submitter Name and Interviewer Code Mismatch (ERROR)
         # ----------------------------------------------------------------------
-        rule_worker_id = "rule_worker_id_mismatch"
-        job_zone = str(doc.get("job_zone", "")).strip()
-        worker_uid = str(doc.get("worker_unique_id", "")).strip()
-        if job_zone and actual_kiln_id and worker_uid:
-            expected_worker_id = f"{actual_kiln_id}_{job_zone[0].upper()}"
-            if worker_uid != expected_worker_id:
-                if rule_worker_id not in resolved_flags:
+        rule_submitter = "rule_submitter_interviewer_mismatch"
+        if rule3_cfg_error:
+            if rule_submitter not in resolved_flags:
+                records_with_unresolved_issues.add(inst_id)
+                append_finding({
+                    "finding_id": f"{inst_id}_{rule_submitter}",
+                    "rule_key": rule_submitter,
+                    "severity": "ERROR",
+                    "category": "errors",
+                    "instanceID": inst_id,
+                    "field": "interviewer",
+                    "original_value": str(doc.get("interviewer") or "-"),
+                    "detected_issue": rule3_cfg_error,
+                    "status": "Active"
+                })
+        else:
+            raw_inv = doc.get("interviewer")
+            raw_sub = doc.get("SubmitterName")
+
+            inv_str = str(raw_inv).strip() if raw_inv is not None and str(raw_inv).strip() not in ["", "None", "nan"] else ""
+            sub_str = str(raw_sub).strip() if raw_sub is not None and str(raw_sub).strip() not in ["", "None", "nan"] else ""
+
+            if not inv_str or not sub_str:
+                if rule_submitter not in resolved_flags:
                     records_with_unresolved_issues.add(inst_id)
+                    if not inv_str and not sub_str:
+                        issue_msg = "Missing Validation Information: Both Interviewer Code and SubmitterName are missing or empty."
+                        field_target = "interviewer"
+                        orig_val = "-"
+                    elif not inv_str:
+                        issue_msg = f"Missing Validation Information: Interviewer Code is missing or empty (SubmitterName: {sub_str})."
+                        field_target = "interviewer"
+                        orig_val = f"SubmitterName: {sub_str}"
+                    else:
+                        issue_msg = f"Missing Validation Information: SubmitterName is missing or empty for Interviewer Code {inv_str}."
+                        field_target = "SubmitterName"
+                        orig_val = f"Interviewer: {inv_str}"
+
                     append_finding({
-                        "finding_id": f"{inst_id}_{rule_worker_id}",
-                        "rule_key": rule_worker_id,
+                        "finding_id": f"{inst_id}_{rule_submitter}",
+                        "rule_key": rule_submitter,
                         "severity": "ERROR",
                         "category": "errors",
                         "instanceID": inst_id,
-                        "field": "worker_unique_id",
-                        "original_value": worker_uid,
-                        "detected_issue": f"Worker ID Structure Mismatch (Expected: {expected_worker_id}, Found: {worker_uid})",
+                        "field": field_target,
+                        "original_value": orig_val,
+                        "detected_issue": issue_msg,
                         "status": "Active"
                     })
+            else:
+                expected_name = rule3_mapping.get(inv_str)
+                if not expected_name and inv_str.isdigit():
+                    expected_name = rule3_mapping.get(f"{int(inv_str):02d}") or rule3_mapping.get(str(int(inv_str)))
+
+                if expected_name is None:
+                    if rule_submitter not in resolved_flags:
+                        records_with_unresolved_issues.add(inst_id)
+                        append_finding({
+                            "finding_id": f"{inst_id}_{rule_submitter}",
+                            "rule_key": rule_submitter,
+                            "severity": "ERROR",
+                            "category": "errors",
+                            "instanceID": inst_id,
+                            "field": "interviewer",
+                            "original_value": inv_str,
+                            "detected_issue": f"Unregistered Interviewer Code: Interviewer Code {inv_str} is not registered in the reference file (Rule3.csv).",
+                            "status": "Active"
+                        })
+                else:
+                    if expected_name.strip().lower() != sub_str.strip().lower():
+                        if rule_submitter not in resolved_flags:
+                            records_with_unresolved_issues.add(inst_id)
+                            append_finding({
+                                "finding_id": f"{inst_id}_{rule_submitter}",
+                                "rule_key": rule_submitter,
+                                "severity": "ERROR",
+                                "category": "errors",
+                                "instanceID": inst_id,
+                                "field": "interviewer",
+                                "original_value": inv_str,
+                                "detected_issue": f"Submitter Name and Interviewer Code Mismatch: Interviewer Code {inv_str} is assigned to {expected_name}, but the submission was submitted under {sub_str}.",
+                                "status": "Active"
+                            })
 
         # ----------------------------------------------------------------------
         # Rule 4: Age Boundary Check (REVIEW_FLAG)
         # ----------------------------------------------------------------------
-        # Kiln Owner Age: < 18 or > 80
+        # Kiln Owner Age: < 18 or > 100
         rule_age = "rule_age_boundary"
         raw_owner_age = doc.get("kiln_owner_age_years")
         if raw_owner_age is not None and str(raw_owner_age).strip() != "":
             try:
                 age_val = float(raw_owner_age)
-                if age_val < 18 or age_val > 80:
+                if age_val < 18 or age_val > 100:
                     if rule_age not in resolved_flags:
                         records_with_unresolved_issues.add(inst_id)
                         append_finding({
@@ -748,7 +879,7 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                             "instanceID": inst_id,
                             "field": "kiln_owner_age_years",
                             "original_value": str(int(age_val) if age_val.is_integer() else age_val),
-                            "detected_issue": f"Kiln Owner Age Out of Standard Range (<18 or >80: reported {int(age_val)} yrs)",
+                            "detected_issue": f"Kiln Owner Age Out of Standard Range (<18 or >100: reported {int(age_val)} yrs)",
                             "status": "Active"
                         })
             except (ValueError, TypeError):
@@ -811,8 +942,8 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                 issue_msg = None
                 if prod_val < 1000:
                     issue_msg = f"Daily Average Green Brick Production Capacity Below Standard Range (<1000: reported {prod_disp} bricks/day)"
-                elif prod_val > 80000:
-                    issue_msg = f"Daily Average Green Brick Production Capacity Above Standard Range (>80000: reported {prod_disp} bricks/day)"
+                elif prod_val > 100000:
+                    issue_msg = f"Daily Average Green Brick Production Capacity Above Standard Range (>100000: reported {prod_disp} bricks/day)"
 
                 if issue_msg:
                     if rule_prod not in resolved_flags:
@@ -825,6 +956,76 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                             "instanceID": inst_id,
                             "field": "daily_green_brick_production",
                             "original_value": prod_disp,
+                            "detected_issue": issue_msg,
+                            "status": "Active"
+                        })
+            except (ValueError, TypeError):
+                pass
+
+        # ----------------------------------------------------------------------
+        # Rule 8: Annual Production Difference (2024–2025) (REVIEW_FLAG)
+        # ----------------------------------------------------------------------
+        rule_delta = "rule_annual_production_delta_2024_2025"
+        raw_delta = (
+            doc.get("annual_production_delta_count_bricks_2024_2025") or 
+            doc.get("annual_production_delta_count_bricks_2024-2025")
+        )
+        if raw_delta is not None and str(raw_delta).strip() != "":
+            try:
+                delta_val = float(raw_delta)
+                delta_disp = str(int(delta_val) if delta_val.is_integer() else delta_val)
+                issue_msg = None
+                if delta_val < 1000:
+                    issue_msg = f"Annual Production Difference (2024–2025) Below Expected Range (<1000: reported {delta_disp} bricks)"
+                elif delta_val > 1000000:
+                    issue_msg = f"Annual Production Difference (2024–2025) Above Expected Range (>1000000: reported {delta_disp} bricks)"
+
+                if issue_msg:
+                    if rule_delta not in resolved_flags:
+                        records_with_unresolved_issues.add(inst_id)
+                        append_finding({
+                            "finding_id": f"{inst_id}_{rule_delta}",
+                            "rule_key": rule_delta,
+                            "severity": "REVIEW_FLAG",
+                            "category": "reviews",
+                            "instanceID": inst_id,
+                            "field": "annual_production_delta_count_bricks_2024_2025",
+                            "original_value": delta_disp,
+                            "detected_issue": issue_msg,
+                            "status": "Active"
+                        })
+            except (ValueError, TypeError):
+                pass
+
+        # ----------------------------------------------------------------------
+        # Rule 9: Annual Production Difference (2023–2024) (REVIEW_FLAG)
+        # ----------------------------------------------------------------------
+        rule_delta_23_24 = "rule_annual_production_delta_2023_2024"
+        raw_delta_23_24 = (
+            doc.get("annual_production_delta_count_bricks_2023_2024") or 
+            doc.get("annual_production_delta_count_bricks_2023-2024")
+        )
+        if raw_delta_23_24 is not None and str(raw_delta_23_24).strip() != "":
+            try:
+                delta_val_23_24 = float(raw_delta_23_24)
+                delta_disp_23_24 = str(int(delta_val_23_24) if delta_val_23_24.is_integer() else delta_val_23_24)
+                issue_msg = None
+                if delta_val_23_24 < 1000:
+                    issue_msg = f"Annual Production Difference (2023–2024) Below Expected Range (<1000: reported {delta_disp_23_24} bricks)"
+                elif delta_val_23_24 > 1000000:
+                    issue_msg = f"Annual Production Difference (2023–2024) Above Expected Range (>1000000: reported {delta_disp_23_24} bricks)"
+
+                if issue_msg:
+                    if rule_delta_23_24 not in resolved_flags:
+                        records_with_unresolved_issues.add(inst_id)
+                        append_finding({
+                            "finding_id": f"{inst_id}_{rule_delta_23_24}",
+                            "rule_key": rule_delta_23_24,
+                            "severity": "REVIEW_FLAG",
+                            "category": "reviews",
+                            "instanceID": inst_id,
+                            "field": "annual_production_delta_count_bricks_2023_2024",
+                            "original_value": delta_disp_23_24,
                             "detected_issue": issue_msg,
                             "status": "Active"
                         })
@@ -1102,13 +1303,25 @@ async def api_resolve_finding(payload: ResolveFindingRequest, user: Dict[str, An
             if payload.field in [
                 "kiln_owner_age_years", "worker_age", 
                 "kiln_owner_experience_years", "experience_years", 
-                "daily_hours", "monthly_income", "daily_green_brick_production"
+                "daily_hours", "monthly_income", "daily_green_brick_production",
+                "annual_production_delta_count_bricks_2024_2025",
+                "annual_production_delta_count_bricks_2024-2025",
+                "annual_production_delta_count_bricks_2023_2024",
+                "annual_production_delta_count_bricks_2023-2024"
             ]:
                 try:
                     new_val = float(new_val) if "." in str(new_val) else int(new_val)
                 except Exception:
                     pass
             updates = {payload.field: new_val}
+            if payload.field == "annual_production_delta_count_bricks_2024_2025":
+                updates["annual_production_delta_count_bricks_2024-2025"] = new_val
+            elif payload.field == "annual_production_delta_count_bricks_2024-2025":
+                updates["annual_production_delta_count_bricks_2024_2025"] = new_val
+            elif payload.field == "annual_production_delta_count_bricks_2023_2024":
+                updates["annual_production_delta_count_bricks_2023-2024"] = new_val
+            elif payload.field == "annual_production_delta_count_bricks_2023-2024":
+                updates["annual_production_delta_count_bricks_2023_2024"] = new_val
             affected_fields = [payload.field]
 
         # Atomically update cleaned_submissions

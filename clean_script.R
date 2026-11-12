@@ -40,6 +40,27 @@ message(sprintf("Total submissions loaded: %d", nrow(df_raw)))
 is_baseline_2026 <- ("kiln_id" %in% names(df_raw) || "dist_geocode" %in% names(df_raw))
 
 # 2. Validation & Business Logic Pipeline
+# Load Rule 3 Reference Mapping (Rule3.csv)
+rule3_map <- list()
+if (file.exists("Rule3.csv")) {
+  tryCatch({
+    rule3_df <- read_csv("Rule3.csv", col_types = cols(.default = "c"), show_col_types = FALSE)
+    if ("interviewer" %in% names(rule3_df) && "SubmitterName" %in% names(rule3_df)) {
+      for (k in seq_len(nrow(rule3_df))) {
+        inv_k <- trimws(as.character(rule3_df$interviewer[k]))
+        sub_k <- trimws(as.character(rule3_df$SubmitterName[k]))
+        if (!is.na(inv_k) && inv_k != "") {
+          rule3_map[[inv_k]] <- sub_k
+          if (grepl("^\\d+$", inv_k)) {
+            rule3_map[[sprintf("%02d", as.integer(inv_k))]] <- sub_k
+            rule3_map[[as.character(as.integer(inv_k))]] <- sub_k
+          }
+        }
+      }
+    }
+  }, error = function(e) {})
+}
+
 df_validated <- df_raw
 
 if (is_baseline_2026) {
@@ -64,13 +85,27 @@ if (is_baseline_2026) {
       # Worker ID mismatch (Not applicable in facility baseline)
       flag_worker_id_mismatch = FALSE,
       
-      # Owner Age boundary check (<18 or >70)
+      # Owner Age boundary check (<18 or >100)
       owner_age_num = as.numeric(kiln_owner_age_years),
-      flag_age_boundary = (!is.na(owner_age_num) & (owner_age_num < 18 | owner_age_num > 70)),
+      flag_age_boundary = (!is.na(owner_age_num) & (owner_age_num < 18 | owner_age_num > 100)),
       
       # Rule 7: Daily Average Green Brick Production Capacity (<1000 or >100000)
       daily_prod_num = as.numeric(daily_green_brick_production),
       flag_daily_green_brick_production = (!is.na(daily_prod_num) & (daily_prod_num < 1000 | daily_prod_num > 100000)),
+      
+      # Rule 8: Annual Production Difference (2024-2025) (<1000 or >1000000)
+      delta_prod_num = as.numeric(coalesce(
+        if ("annual_production_delta_count_bricks_2024_2025" %in% names(df_validated)) as.character(annual_production_delta_count_bricks_2024_2025) else NA_character_,
+        if ("annual_production_delta_count_bricks_2024-2025" %in% names(df_validated)) as.character(`annual_production_delta_count_bricks_2024-2025`) else NA_character_
+      )),
+      flag_delta_production_2024_2025 = (!is.na(delta_prod_num) & (delta_prod_num < 1000 | delta_prod_num > 1000000)),
+      
+      # Rule 9: Annual Production Difference (2023-2024) (<1000 or >1000000)
+      delta_prod_2023_num = as.numeric(coalesce(
+        if ("annual_production_delta_count_bricks_2023_2024" %in% names(df_validated)) as.character(annual_production_delta_count_bricks_2023_2024) else NA_character_,
+        if ("annual_production_delta_count_bricks_2023-2024" %in% names(df_validated)) as.character(`annual_production_delta_count_bricks_2023-2024`) else NA_character_
+      )),
+      flag_delta_production_2023_2024 = (!is.na(delta_prod_2023_num) & (delta_prod_2023_num < 1000 | delta_prod_2023_num > 1000000)),
       
       flag_health_conflict = FALSE,
       flag_extreme_hours = FALSE
@@ -149,15 +184,24 @@ for (i in seq_len(nrow(df_validated))) {
     )
   }
   
-  if (isTRUE(row$flag_worker_id_mismatch)) {
-    findings_list[[length(findings_list) + 1]] <- data.frame(
-      severity = "ERROR",
-      instanceID = inst_id,
-      field = "worker_unique_id",
-      original_value = as.character(row$worker_unique_id),
-      detected_issue = sprintf("Worker ID Structure Mismatch (Expected: %s, Found: %s)", row$expected_worker_id, row$worker_unique_id),
-      stringsAsFactors = FALSE
-    )
+  # Rule 3: Submitter Name and Interviewer Code Mismatch
+  inv_code <- trimws(as.character(row$interviewer))
+  sub_name <- trimws(as.character(row$SubmitterName))
+  if (length(rule3_map) > 0 && !is.na(inv_code) && inv_code != "" && !is.na(sub_name) && sub_name != "") {
+    exp_name <- rule3_map[[inv_code]]
+    if (!is.null(exp_name) && !is.na(exp_name) && tolower(trimws(exp_name)) != tolower(trimws(sub_name))) {
+      findings_list[[length(findings_list) + 1]] <- data.frame(
+        severity = "ERROR",
+        instanceID = inst_id,
+        field = "interviewer",
+        original_value = inv_code,
+        detected_issue = sprintf(
+          "Submitter Name and Interviewer Code Mismatch: Interviewer Code %s is assigned to %s, but the submission was submitted under %s.",
+          inv_code, exp_name, sub_name
+        ),
+        stringsAsFactors = FALSE
+      )
+    }
   }
   
   if (isTRUE(row$flag_duplicate_kiln)) {
@@ -180,7 +224,7 @@ for (i in seq_len(nrow(df_validated))) {
         instanceID = inst_id,
         field = "kiln_owner_age_years",
         original_value = as.character(row$kiln_owner_age_years),
-        detected_issue = sprintf("Kiln Owner Age Out of Standard Range (<18 or >70: reported %s yrs)", row$kiln_owner_age_years),
+        detected_issue = sprintf("Kiln Owner Age Out of Standard Range (<18 or >100: reported %s yrs)", row$kiln_owner_age_years),
         stringsAsFactors = FALSE
       )
     } else {
@@ -207,6 +251,42 @@ for (i in seq_len(nrow(df_validated))) {
       instanceID = inst_id,
       field = "daily_green_brick_production",
       original_value = as.character(row$daily_green_brick_production),
+      detected_issue = issue_msg,
+      stringsAsFactors = FALSE
+    )
+  }
+  
+  if (isTRUE(row$flag_delta_production_2024_2025)) {
+    delta_val <- as.numeric(row$delta_prod_num)
+    delta_str <- as.character(as.integer(delta_val))
+    issue_msg <- if (delta_val < 1000) {
+      sprintf("Annual Production Difference (2024–2025) Below Expected Range (<1000: reported %s bricks)", delta_str)
+    } else {
+      sprintf("Annual Production Difference (2024–2025) Above Expected Range (>1000000: reported %s bricks)", delta_str)
+    }
+    findings_list[[length(findings_list) + 1]] <- data.frame(
+      severity = "REVIEW_FLAG",
+      instanceID = inst_id,
+      field = "annual_production_delta_count_bricks_2024_2025",
+      original_value = delta_str,
+      detected_issue = issue_msg,
+      stringsAsFactors = FALSE
+    )
+  }
+  
+  if (isTRUE(row$flag_delta_production_2023_2024)) {
+    delta_val <- as.numeric(row$delta_prod_2023_num)
+    delta_str <- as.character(as.integer(delta_val))
+    issue_msg <- if (delta_val < 1000) {
+      sprintf("Annual Production Difference (2023–2024) Below Expected Range (<1000: reported %s bricks)", delta_str)
+    } else {
+      sprintf("Annual Production Difference (2023–2024) Above Expected Range (>1000000: reported %s bricks)", delta_str)
+    }
+    findings_list[[length(findings_list) + 1]] <- data.frame(
+      severity = "REVIEW_FLAG",
+      instanceID = inst_id,
+      field = "annual_production_delta_count_bricks_2023_2024",
+      original_value = delta_str,
       detected_issue = issue_msg,
       stringsAsFactors = FALSE
     )

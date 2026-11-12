@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Brick Kiln Data Quality Monitor | Form: brick_kiln_survey • Project 5</title>
+  <title>Brick Kiln Data Quality Monitor | Form: brick_kiln_baseline • Project 7</title>
 
   <!-- Modern Inter Font -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -490,14 +490,13 @@
                 <th class="py-3 px-3">Owner Age</th>
                 <th class="py-3 px-3 text-center">This Year Operate</th>
                 <th class="py-3 px-3 text-center">Previous Year Operate</th>
-                <th class="py-3 px-3 text-center">Consent</th>
                 <th class="py-3 px-3 text-center">Inspect</th>
               </tr>
             </thead>
             <tbody id="registry-table-body"
               class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-200 light:text-slate-800">
               <tr>
-                <td colspan="11" class="py-8 text-center text-slate-400">Loading submissions...</td>
+                <td colspan="10" class="py-8 text-center text-slate-400">Loading submissions...</td>
               </tr>
             </tbody>
           </table>
@@ -551,12 +550,13 @@
               <i class="fa-solid fa-broom text-amber-400"></i>
               <span>Purge Sample / Test Data</span>
             </button>
-            -->
+            
             <button onclick="resetAllData()"
               class="w-full py-2 bg-rose-950/40 hover:bg-rose-900/60 border border-rose-600/40 text-rose-300 rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition">
               <i class="fa-solid fa-triangle-exclamation text-rose-400"></i>
               <span>Reset All Previous Data</span>
             </button>
+            -->
           </div>
         </div>
 
@@ -1187,6 +1187,7 @@
     // Helper to determine if finding involves Kiln ID / interrelated cascading fields
     function isKilnRelatedFinding(item) {
       if (!item) return false;
+      if (item.rule_key === 'rule_submitter_interviewer_mismatch') return false;
       return (
         item.field === 'kiln_id' ||
         item.field === 'dist_geocode' ||
@@ -1709,7 +1710,7 @@
     function renderRegistryTable(records) {
       const tbody = document.getElementById('registry-table-body');
       if (!records || records.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" class="py-8 text-center text-slate-400">No matching submissions found</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-slate-400">No matching submissions found</td></tr>`;
         return;
       }
 
@@ -1737,10 +1738,6 @@
         const age = r.kiln_owner_age_years ?? r.worker_age ?? '-';
         const thisYearOperate = r.kiln_operate_plan ?? r['kiln_operation_information-kiln_operate_plan'] ?? '-';
         const prevYearOperate = r.kiln_operation_previous_year ?? r['previous_season_note-kiln_operation_previous_year'] ?? '-';
-        const consent = String(r.consent || r['consent_taking-consent'] || 'yes').toLowerCase();
-        const consentBadge = consent === 'yes'
-          ? '<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold">Yes</span>'
-          : '<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-semibold">No</span>';
 
         return `
           <tr class="hover:bg-slate-800/40 light:hover:bg-slate-50 transition border-b border-[#1e293b] light:border-slate-200">
@@ -1753,7 +1750,6 @@
             <td class="py-2.5 px-3 whitespace-nowrap font-mono">${age}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">${formatOperateBadge(thisYearOperate)}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">${formatOperateBadge(prevYearOperate)}</td>
-            <td class="py-2.5 px-3 text-center whitespace-nowrap">${consentBadge}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">
               <button onclick="inspectRecord('${safeId}')" class="p-1.5 text-slate-400 hover:text-indigo-400 rounded hover:bg-slate-800 transition" title="Inspect full record">
                 <i class="fa-solid fa-eye text-xs"></i>
