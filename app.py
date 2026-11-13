@@ -855,8 +855,8 @@ def evaluate_dataset(submissions: List[Dict[str, Any]]) -> Dict[str, Any]:
                                 "instanceID": inst_id,
                                 "field": "interviewer",
                                 "original_value": inv_str,
-                                "detected_issue": f"Submitter Name and Interviewer Code Mismatch: Interviewer Code {inv_str} is assigned to {expected_name}, but the submission was submitted under {sub_str}.",
-                                "status": "Active"
+                               "detected_issue": f"Submitter Name and Interviewer Code Mismatch: Interviewer Code <b>{inv_str}</b> is assigned to <b>{expected_name}</b>, but the submission was submitted under <b>{sub_str}</b>.",
+                                "status": "Active" 
                             })
 
         # ----------------------------------------------------------------------
@@ -1643,38 +1643,67 @@ async def export_clean_csv(user: Dict[str, Any] = Depends(get_current_user)):
 @app.get("/api/export/audit-csv")
 async def export_audit_csv(user: Dict[str, Any] = Depends(get_current_user)):
     """
-    Download CSV containing only modified rows with wide paired columns ({field}_old, {field}_new) and changed_by.
+    Download CSV containing modified rows with paired columns ({field}_old, {field}_new) and metadata.
+    Ensures {field}_old captures the true original baseline from the earliest edit,
+    and {field}_new reflects the latest approved correction.
     """
-    audit_logs = db_store.get_audit_logs(limit=1000)
+    audit_logs = db_store.get_audit_logs(limit=5000)
     
+    # Sort chronologically ascending (earliest edit first)
+    sorted_logs = sorted(
+        audit_logs,
+        key=lambda x: str(x.get("created_at", x.get("timestamp", "")))
+    )
+
     # Group changes by instanceID
     grouped: Dict[str, Dict[str, Any]] = {}
-    for entry in audit_logs:
+    paired_fields: List[str] = []
+
+    for entry in sorted_logs:
         inst_id = entry.get("instanceID")
         if not inst_id:
             continue
         if inst_id not in grouped:
             grouped[inst_id] = {
                 "instanceID": inst_id,
-                "changed_by": entry.get("changed_by", ""),
-                "last_modified": entry.get("created_at", entry.get("timestamp", ""))
             }
         
+        # Track metadata from latest revision
+        if entry.get("changed_by"):
+            grouped[inst_id]["changed_by"] = entry.get("changed_by")
+        if entry.get("created_at") or entry.get("timestamp"):
+            grouped[inst_id]["last_modified"] = entry.get("created_at", entry.get("timestamp"))
+
         field = entry.get("field", "unknown")
-        old_val = entry.get("old_value", "")
-        new_val = entry.get("new_value", "")
+        if field != "unknown" and field not in paired_fields:
+            paired_fields.append(field)
+
+        old_key = f"{field}_old"
+        new_key = f"{field}_new"
+
+        # Capture original baseline from earliest record
+        if old_key not in grouped[inst_id]:
+            grouped[inst_id][old_key] = entry.get("old_value", "")
         
-        # Paired columns {field}_old, {field}_new
-        grouped[inst_id][f"{field}_old"] = old_val
-        grouped[inst_id][f"{field}_new"] = new_val
+        # Update latest value from latest record
+        grouped[inst_id][new_key] = entry.get("new_value", "")
 
     if not grouped:
-        df = pd.DataFrame(columns=["instanceID", "changed_by", "last_modified", "field_old", "field_new"])
+        df = pd.DataFrame(columns=["instanceID", "changed_by", "last_modified"])
     else:
+        # Determine column order: instanceID, paired fields (var_old, var_new), then changed_by, last_modified
+        ordered_cols = ["instanceID"]
+        for f in paired_fields:
+            ordered_cols.extend([f"{f}_old", f"{f}_new"])
+        ordered_cols.extend(["changed_by", "last_modified"])
+
         df = pd.DataFrame(list(grouped.values()))
+        existing_cols = [c for c in ordered_cols if c in df.columns]
+        extra_cols = [c for c in df.columns if c not in existing_cols]
+        df = df[existing_cols + extra_cols]
 
     csv_data = df.to_csv(index=False)
-    filename = f"brick_kiln_audit_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    filename = f"Old_New_Rows_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
 
     return StreamingResponse(
         iter([csv_data]),
