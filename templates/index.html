@@ -16,6 +16,10 @@
   <!-- FontAwesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
+  <!-- jsPDF & AutoTable for client-side PDF Report generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -357,6 +361,12 @@
         <i class="fa-solid fa-box-archive text-amber-600"></i>
         <span>Export & R Script Center</span>
       </button>
+
+      <button onclick="switchTab('reports')" id="tab-reports"
+        class="py-3 px-1 text-slate-400 light:text-slate-600 hover:text-white light:hover:text-slate-900 border-b-2 border-transparent transition flex items-center space-x-2">
+        <i class="fa-solid fa-chart-pie text-emerald-400"></i>
+        <span>Reports</span>
+      </button>
     </div>
 
     <!-- ======================================================================= -->
@@ -666,6 +676,296 @@
 
 
 
+      </div>
+
+    </section>
+
+    <!-- ======================================================================= -->
+    <!-- TAB 5: REPORTS & FIELD ACTIVITY ANALYTICS -->
+    <!-- ======================================================================= -->
+    <section id="panel-reports" class="hidden space-y-6">
+
+      <!-- Top Header / Actions Card -->
+      <div
+        class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center space-x-3">
+              <div
+                class="w-10 h-10 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg">
+                <i class="fa-solid fa-chart-pie"></i>
+              </div>
+              <div>
+                <h2 class="text-base font-bold text-white light:text-slate-900">Survey Activity Reports & Field Metrics
+                </h2>
+                <p class="text-xs text-slate-400 light:text-slate-600">
+                  Real-time district-wise and interviewer-wise operational performance breakdowns
+                </p>
+              </div>
+            </div>
+            <div class="mt-2 flex items-center space-x-2 text-[11px] text-slate-400 light:text-slate-500">
+              <i class="fa-regular fa-clock text-slate-500"></i>
+              <span>Report Generated: <strong id="report-generated-timestamp"
+                  class="text-slate-300 light:text-slate-700">Loading...</strong></span>
+            </div>
+          </div>
+
+          <!-- Controls: Date Selector & Download Action Buttons -->
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- Date Filter for Today's section -->
+            <div
+              class="flex items-center space-x-2 bg-[#0d1527] light:bg-slate-50 border border-slate-700/80 light:border-slate-300 rounded-lg px-3 py-1.5 text-xs text-slate-300 light:text-slate-700">
+              <label for="reports-date-select"
+                class="text-[11px] font-semibold text-slate-400 light:text-slate-500 whitespace-nowrap">Report
+                Date:</label>
+              <select id="reports-date-select" onchange="onReportDateChange(this.value)"
+                class="bg-transparent text-white light:text-slate-900 border-none outline-none font-medium cursor-pointer text-xs">
+                <!-- Dynamically populated -->
+              </select>
+            </div>
+
+            <!-- Download Today's Report Button (Top Right Corner) -->
+            <button onclick="downloadReportPDF('today')" id="btn-download-today-report"
+              class="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-lg text-xs font-semibold flex items-center space-x-2 transition shadow-md shadow-emerald-950/40">
+              <i class="fa-solid fa-file-pdf"></i>
+              <span>Download Today's Report</span>
+            </button>
+
+            <!-- Download Overall Report Button -->
+            <!--
+            <button onclick="downloadReportPDF('overall')"
+              class="px-4 py-2 bg-[#1e293b] light:bg-slate-100 hover:bg-slate-700 light:hover:bg-slate-200 text-slate-200 light:text-slate-800 rounded-lg text-xs font-semibold flex items-center space-x-2 transition border border-slate-700 light:border-slate-300">
+              <i class="fa-solid fa-download"></i>
+              <span>Download Overall Report</span>
+            </button>
+            -->
+          </div>
+        </div>
+
+        <!-- Metric KPI Cards Row -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 pt-4 border-t border-[#1e293b] light:border-slate-200">
+          <div class="bg-[#0d1527] light:bg-slate-50 border border-slate-800/80 light:border-slate-200 rounded-lg p-3">
+            <span
+              class="text-[11px] text-slate-400 light:text-slate-500 font-medium uppercase tracking-wider block">Today's
+              Submissions</span>
+            <div class="flex items-baseline space-x-2 mt-1">
+              <span id="metric-today-submissions" class="text-xl font-extrabold text-emerald-400">--</span>
+              <span id="metric-today-date-badge" class="text-[10px] text-slate-400 font-mono">Today</span>
+            </div>
+          </div>
+          <div class="bg-[#0d1527] light:bg-slate-50 border border-slate-800/80 light:border-slate-200 rounded-lg p-3">
+            <span
+              class="text-[11px] text-slate-400 light:text-slate-500 font-medium uppercase tracking-wider block">Overall
+              Submissions</span>
+            <span id="metric-overall-submissions" class="text-xl font-extrabold text-indigo-400 mt-1 block">--</span>
+          </div>
+          <div class="bg-[#0d1527] light:bg-slate-50 border border-slate-800/80 light:border-slate-200 rounded-lg p-3">
+            <span
+              class="text-[11px] text-slate-400 light:text-slate-500 font-medium uppercase tracking-wider block">Districts
+              Covered</span>
+            <span id="metric-active-districts" class="text-xl font-extrabold text-sky-400 mt-1 block">--</span>
+          </div>
+          <div class="bg-[#0d1527] light:bg-slate-50 border border-slate-800/80 light:border-slate-200 rounded-lg p-3">
+            <span
+              class="text-[11px] text-slate-400 light:text-slate-500 font-medium uppercase tracking-wider block">Field
+              Enumerators</span>
+            <span id="metric-active-interviewers" class="text-xl font-extrabold text-amber-400 mt-1 block">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- SECTION 1: TODAY'S SUBMISSIONS -->
+      <!-- ===================================================================== -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-md bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-calendar-day"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white light:text-slate-900">Today's Section</h3>
+              <p class="text-[11px] text-slate-400 light:text-slate-500">
+                Submissions recorded for <span id="section-today-date-label"
+                  class="font-semibold text-emerald-400">Today</span>
+              </p>
+            </div>
+          </div>
+          <span id="today-total-badge"
+            class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 light:bg-emerald-100 light:text-emerald-800 border border-emerald-500/30">
+            0 Submissions
+          </span>
+        </div>
+
+        <!-- 2 Tables Side by Side (District-wise & Interviewer-wise for Today) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          <!-- District-wise Table (Today) -->
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
+            <div
+              class="px-4 py-3 bg-[#0d1527] light:bg-slate-50 border-b border-[#1e293b] light:border-slate-200 flex items-center justify-between">
+              <span class="text-xs font-bold text-white light:text-slate-900 flex items-center space-x-2">
+                <i class="fa-solid fa-location-dot text-indigo-400"></i>
+                <span>District-wise Table (Today's)</span>
+              </span>
+              <span class="text-[10px] text-slate-400 font-mono" id="today-district-count-meta">0 Districts</span>
+            </div>
+            <div class="overflow-x-auto flex-1">
+              <table class="w-full text-left text-xs">
+                <thead
+                  class="text-[11px] uppercase tracking-wider text-slate-400 light:text-slate-500 bg-[#0d1527]/50 light:bg-slate-100/60 border-b border-[#1e293b] light:border-slate-200">
+                  <tr>
+                    <th class="py-2.5 px-3">#</th>
+                    <th class="py-2.5 px-3">District Name</th>
+                    <th class="py-2.5 px-3">Code</th>
+                    <th class="py-2.5 px-3 text-right">Submissions</th>
+                    <th class="py-2.5 px-3 text-right">Percent (%)</th>
+                  </tr>
+                </thead>
+                <tbody id="table-today-districts-body" class="divide-y divide-[#1e293b]/60 light:divide-slate-200">
+                  <!-- Dynamic rows -->
+                </tbody>
+                <tfoot id="table-today-districts-foot"
+                  class="bg-[#0d1527] light:bg-slate-50 border-t border-[#1e293b] light:border-slate-200 font-bold text-white light:text-slate-900">
+                  <!-- Dynamic total -->
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <!-- Interviewer-wise Table (Today) -->
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
+            <div
+              class="px-4 py-3 bg-[#0d1527] light:bg-slate-50 border-b border-[#1e293b] light:border-slate-200 flex items-center justify-between">
+              <span class="text-xs font-bold text-white light:text-slate-900 flex items-center space-x-2">
+                <i class="fa-solid fa-user-check text-emerald-400"></i>
+                <span>Interviewer-wise Table (Today's)</span>
+              </span>
+              <span class="text-[10px] text-slate-400 font-mono" id="today-interviewer-count-meta">0 Enumerators</span>
+            </div>
+            <div class="overflow-x-auto flex-1 max-h-[380px] overflow-y-auto">
+              <table class="w-full text-left text-xs">
+                <thead
+                  class="sticky top-0 text-[11px] uppercase tracking-wider text-slate-400 light:text-slate-500 bg-[#0d1527] light:bg-slate-100 border-b border-[#1e293b] light:border-slate-200">
+                  <tr>
+                    <th class="py-2.5 px-3">#</th>
+                    <th class="py-2.5 px-3">Interviewer Name</th>
+                    <th class="py-2.5 px-3">Code</th>
+                    <th class="py-2.5 px-3 text-right">Submissions</th>
+                    <th class="py-2.5 px-3 text-right">Percent (%)</th>
+                  </tr>
+                </thead>
+                <tbody id="table-today-interviewers-body" class="divide-y divide-[#1e293b]/60 light:divide-slate-200">
+                  <!-- Dynamic rows -->
+                </tbody>
+                <tfoot id="table-today-interviewers-foot"
+                  class="sticky bottom-0 bg-[#0d1527] light:bg-slate-50 border-t border-[#1e293b] light:border-slate-200 font-bold text-white light:text-slate-900">
+                  <!-- Dynamic total -->
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- SECTION 2: OVERALL SUBMISSIONS -->
+      <!-- ===================================================================== -->
+      <div class="space-y-4 pt-2">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-md bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-globe"></i>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-white light:text-slate-900">Overall Section</h3>
+              <p class="text-[11px] text-slate-400 light:text-slate-500">
+                Cumulative survey progress across all target districts and field interviewers
+              </p>
+            </div>
+          </div>
+          <span id="overall-total-badge"
+            class="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-500/20 text-indigo-300 light:bg-indigo-100 light:text-indigo-800 border border-indigo-500/30">
+            0 Submissions
+          </span>
+        </div>
+
+        <!-- 2 Tables Side by Side (District-wise & Interviewer-wise for Overall) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+          <!-- District-wise Table (Overall) -->
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
+            <div
+              class="px-4 py-3 bg-[#0d1527] light:bg-slate-50 border-b border-[#1e293b] light:border-slate-200 flex items-center justify-between">
+              <span class="text-xs font-bold text-white light:text-slate-900 flex items-center space-x-2">
+                <i class="fa-solid fa-map-location-dot text-indigo-400"></i>
+                <span>District-wise Table (Overall)</span>
+              </span>
+              <span class="text-[10px] text-slate-400 font-mono" id="overall-district-count-meta">0 Districts</span>
+            </div>
+            <div class="overflow-x-auto flex-1">
+              <table class="w-full text-left text-xs">
+                <thead
+                  class="text-[11px] uppercase tracking-wider text-slate-400 light:text-slate-500 bg-[#0d1527]/50 light:bg-slate-100/60 border-b border-[#1e293b] light:border-slate-200">
+                  <tr>
+                    <th class="py-2.5 px-3">#</th>
+                    <th class="py-2.5 px-3">District Name</th>
+                    <th class="py-2.5 px-3">Code</th>
+                    <th class="py-2.5 px-3 text-right">Submissions</th>
+                    <th class="py-2.5 px-3 text-right">Percent (%)</th>
+                  </tr>
+                </thead>
+                <tbody id="table-overall-districts-body" class="divide-y divide-[#1e293b]/60 light:divide-slate-200">
+                  <!-- Dynamic rows -->
+                </tbody>
+                <tfoot id="table-overall-districts-foot"
+                  class="bg-[#0d1527] light:bg-slate-50 border-t border-[#1e293b] light:border-slate-200 font-bold text-white light:text-slate-900">
+                  <!-- Dynamic total -->
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <!-- Interviewer-wise Table (Overall) -->
+          <div
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col">
+            <div
+              class="px-4 py-3 bg-[#0d1527] light:bg-slate-50 border-b border-[#1e293b] light:border-slate-200 flex items-center justify-between">
+              <span class="text-xs font-bold text-white light:text-slate-900 flex items-center space-x-2">
+                <i class="fa-solid fa-users text-amber-400"></i>
+                <span>Interviewer-wise Table (Overall)</span>
+              </span>
+              <span class="text-[10px] text-slate-400 font-mono" id="overall-interviewer-count-meta">0
+                Enumerators</span>
+            </div>
+            <div class="overflow-x-auto flex-1 max-h-[420px] overflow-y-auto">
+              <table class="w-full text-left text-xs">
+                <thead
+                  class="sticky top-0 text-[11px] uppercase tracking-wider text-slate-400 light:text-slate-500 bg-[#0d1527] light:bg-slate-100 border-b border-[#1e293b] light:border-slate-200">
+                  <tr>
+                    <th class="py-2.5 px-3">#</th>
+                    <th class="py-2.5 px-3">Interviewer Name</th>
+                    <th class="py-2.5 px-3">Code</th>
+                    <th class="py-2.5 px-3 text-right">Submissions</th>
+                    <th class="py-2.5 px-3 text-right">Percent (%)</th>
+                  </tr>
+                </thead>
+                <tbody id="table-overall-interviewers-body" class="divide-y divide-[#1e293b]/60 light:divide-slate-200">
+                  <!-- Dynamic rows -->
+                </tbody>
+                <tfoot id="table-overall-interviewers-foot"
+                  class="sticky bottom-0 bg-[#0d1527] light:bg-slate-50 border-t border-[#1e293b] light:border-slate-200 font-bold text-white light:text-slate-900">
+                  <!-- Dynamic total -->
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+        </div>
       </div>
 
     </section>
@@ -1851,7 +2151,7 @@
 
     // Navigation Tab Switching
     function switchTab(tabId) {
-      const tabs = ['data-quality', 'submissions-registry', 'sync-logs', 'export-center'];
+      const tabs = ['data-quality', 'submissions-registry', 'sync-logs', 'export-center', 'reports'];
       tabs.forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
         const panel = document.getElementById(`panel-${t}`);
@@ -1868,6 +2168,8 @@
         loadSubmissionsRegistry();
       } else if (tabId === 'sync-logs') {
         loadSyncLogs();
+      } else if (tabId === 'reports') {
+        loadReportsData();
       }
     }
 
@@ -1899,6 +2201,417 @@
         }, 2000);
         showToast('R script copied to clipboard', 'info');
       });
+    }
+
+    // Helper: Escape HTML strings to prevent XSS
+    function escapeHtml(str) {
+      if (str == null) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    // -------------------------------------------------------------------------
+    // Reports & Analytics Logic
+    // -------------------------------------------------------------------------
+    async function loadReportsData(selectedDate = null) {
+      if (!state.token) return;
+
+      const dateQuery = selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : '';
+      const url = `/api/reports/summary?token=${encodeURIComponent(state.token)}${dateQuery}`;
+
+      try {
+        const response = await fetch(url, { credentials: 'include' });
+        if (!response.ok) {
+          throw new Error(`HTTP Error ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.status === 'success') {
+          state.reportsData = data;
+          renderReportsSummary(data);
+        } else {
+          showToast('Failed to load reports data', 'error');
+        }
+      } catch (err) {
+        console.error('Error fetching reports data:', err);
+        showToast('Error loading report analytics', 'error');
+      }
+    }
+
+    function renderReportsSummary(data) {
+      // 1. Header info & metrics
+      const genEl = document.getElementById('report-generated-timestamp');
+      if (genEl) genEl.textContent = data.generated_at_display || data.generated_at || '-';
+
+      const todaySubEl = document.getElementById('metric-today-submissions');
+      if (todaySubEl) todaySubEl.textContent = (data.today && data.today.total != null) ? data.today.total : 0;
+
+      const todayDateBadge = document.getElementById('metric-today-date-badge');
+      if (todayDateBadge) {
+        todayDateBadge.textContent = data.selected_date ? data.selected_date : 'Today';
+      }
+
+      const overallSubEl = document.getElementById('metric-overall-submissions');
+      if (overallSubEl) overallSubEl.textContent = (data.overall && data.overall.total != null) ? data.overall.total : 0;
+
+      const distCountEl = document.getElementById('metric-active-districts');
+      if (distCountEl) distCountEl.textContent = (data.overall && data.overall.districts) ? data.overall.districts.length : 0;
+
+      const invCountEl = document.getElementById('metric-active-interviewers');
+      if (invCountEl) invCountEl.textContent = (data.overall && data.overall.interviewers) ? data.overall.interviewers.length : 0;
+
+      // Section total badges
+      const todayTotalBadge = document.getElementById('today-total-badge');
+      if (todayTotalBadge) todayTotalBadge.textContent = `${data.today ? data.today.total : 0} Submissions`;
+
+      const todaySectionDateLabel = document.getElementById('section-today-date-label');
+      if (todaySectionDateLabel) todaySectionDateLabel.textContent = data.selected_date || data.today_date;
+
+      const overallTotalBadge = document.getElementById('overall-total-badge');
+      if (overallTotalBadge) overallTotalBadge.textContent = `${data.overall ? data.overall.total : 0} Submissions`;
+
+      // Date selector dropdown population
+      const dateSelect = document.getElementById('reports-date-select');
+      if (dateSelect && data.available_dates) {
+        const currentVal = data.selected_date || data.today_date;
+        let optionsHtml = '';
+
+        // Ensure today option exists
+        const hasToday = data.available_dates.some(d => d.date === data.today_date);
+        if (!hasToday) {
+          optionsHtml += `<option value="${data.today_date}" ${currentVal === data.today_date ? 'selected' : ''}>Today (${data.today_date}) • 0 subs</option>`;
+        }
+
+        data.available_dates.forEach(d => {
+          const isSelected = d.date === currentVal;
+          const isToday = d.date === data.today_date;
+          const label = isToday ? `Today (${d.date}) • ${d.count} subs` : `${d.date} • ${d.count} subs`;
+          optionsHtml += `<option value="${d.date}" ${isSelected ? 'selected' : ''}>${label}</option>`;
+        });
+
+        dateSelect.innerHTML = optionsHtml;
+      }
+
+      // 2. Render Today's Section Tables
+      const todayData = data.today || { total: 0, districts: [], interviewers: [] };
+      renderReportsTable('table-today-districts-body', 'table-today-districts-foot', todayData.districts, true, todayData.total);
+      renderReportsTable('table-today-interviewers-body', 'table-today-interviewers-foot', todayData.interviewers, false, todayData.total);
+
+      const todayDistMeta = document.getElementById('today-district-count-meta');
+      if (todayDistMeta) todayDistMeta.textContent = `${todayData.districts ? todayData.districts.length : 0} Districts`;
+
+      const todayInvMeta = document.getElementById('today-interviewer-count-meta');
+      if (todayInvMeta) todayInvMeta.textContent = `${todayData.interviewers ? todayData.interviewers.length : 0} Enumerators`;
+
+      // 3. Render Overall Section Tables
+      const overallData = data.overall || { total: 0, districts: [], interviewers: [] };
+      renderReportsTable('table-overall-districts-body', 'table-overall-districts-foot', overallData.districts, true, overallData.total);
+      renderReportsTable('table-overall-interviewers-body', 'table-overall-interviewers-foot', overallData.interviewers, false, overallData.total);
+
+      const overallDistMeta = document.getElementById('overall-district-count-meta');
+      if (overallDistMeta) overallDistMeta.textContent = `${overallData.districts ? overallData.districts.length : 0} Districts`;
+
+      const overallInvMeta = document.getElementById('overall-interviewer-count-meta');
+      if (overallInvMeta) overallInvMeta.textContent = `${overallData.interviewers ? overallData.interviewers.length : 0} Enumerators`;
+    }
+
+    function renderReportsTable(tbodyId, tfootId, items, isDistrict, totalCount) {
+      const tbody = document.getElementById(tbodyId);
+      const tfoot = document.getElementById(tfootId);
+      if (!tbody) return;
+
+      if (!items || items.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" class="py-8 text-center text-slate-500 text-xs">
+              <i class="fa-solid fa-inbox text-2xl mb-2 block opacity-40"></i>
+              No submissions recorded for this period.
+            </td>
+          </tr>
+        `;
+        if (tfoot) tfoot.innerHTML = '';
+        return;
+      }
+
+      tbody.innerHTML = items.map((item, idx) => {
+        const rank = idx + 1;
+        const name = item.name || (isDistrict ? `District ${item.code}` : `Interviewer ${item.code}`);
+        const code = item.code || '-';
+        const count = item.count || 0;
+        const pct = item.percentage != null ? item.percentage : 0;
+        const icon = isDistrict ? 'fa-location-dot text-indigo-400' : 'fa-user-check text-emerald-400';
+
+        return `
+          <tr class="hover:bg-[#152042] light:hover:bg-slate-50 transition border-b border-[#1e293b]/60 light:border-slate-100">
+            <td class="py-2.5 px-3 font-mono text-[11px] text-slate-400 text-center w-8">${rank}</td>
+            <td class="py-2.5 px-3 font-medium text-slate-200 light:text-slate-800">
+              <div class="flex items-center space-x-2">
+                <i class="fa-solid ${icon} text-[10px] opacity-70"></i>
+                <span class="font-medium">${escapeHtml(name)}</span>
+              </div>
+            </td>
+            <td class="py-2.5 px-3 font-mono text-[11px] text-slate-400">${escapeHtml(code)}</td>
+            <td class="py-2.5 px-3 text-right">
+              <span class="px-2 py-0.5 rounded text-xs font-bold font-mono bg-indigo-500/10 text-indigo-300 light:bg-indigo-50 light:text-indigo-700">
+                ${count}
+              </span>
+            </td>
+            <td class="py-2.5 px-3 text-right">
+              <div class="flex items-center justify-end space-x-2">
+                <div class="w-12 bg-slate-700/50 light:bg-slate-200 rounded-full h-1.5 overflow-hidden hidden sm:block">
+                  <div class="bg-indigo-500 h-1.5 rounded-full" style="width: ${Math.min(pct, 100)}%"></div>
+                </div>
+                <span class="font-mono text-slate-300 light:text-slate-700 text-[11px] w-10 text-right">${pct}%</span>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (tfoot) {
+        tfoot.innerHTML = `
+          <tr>
+            <td colspan="3" class="py-2.5 px-3 text-xs uppercase tracking-wider font-bold">Total</td>
+            <td class="py-2.5 px-3 text-right font-mono text-xs font-bold text-emerald-400 light:text-emerald-700">${totalCount}</td>
+            <td class="py-2.5 px-3 text-right font-mono text-xs font-bold text-slate-300 light:text-slate-700">100.0%</td>
+          </tr>
+        `;
+      }
+    }
+
+    function onReportDateChange(newDate) {
+      if (!newDate) return;
+      loadReportsData(newDate);
+    }
+
+    // -------------------------------------------------------------------------
+    // PDF Report Generator (jsPDF + AutoTable)
+    // -------------------------------------------------------------------------
+    async function downloadReportPDF(reportType = 'today') {
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        showToast('PDF generation library is loading. Please try again in a moment.', 'warning');
+        return;
+      }
+
+      if (!state.reportsData) {
+        showToast('Loading report data before PDF generation...', 'info');
+        await loadReportsData();
+      }
+
+      const data = state.reportsData;
+      if (!data) {
+        showToast('Unable to load report data for PDF generation.', 'error');
+        return;
+      }
+
+      showToast('Generating professional PDF report...', 'info');
+
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({
+          orientation: 'portrait',
+          unit: 'mm',
+          format: 'a4'
+        });
+
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 14;
+        let currentY = 16;
+
+        // Top Brand Header Banner
+        doc.setFillColor(15, 23, 42); // slate-900
+        doc.rect(0, 0, pageWidth, 28, 'F');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(255, 255, 255);
+        doc.text('BRICK KILN BASELINE DATA MONITORING REPORT', margin, 11);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(148, 163, 184); // slate-400
+        const titleText = reportType === 'today'
+          ? `DAILY FIELD ACTIVITY REPORT • Date: ${data.selected_date || data.today_date}`
+          : 'OVERALL CUMULATIVE SURVEY ACTIVITY REPORT';
+        doc.text(titleText, margin, 17);
+
+        const formText = 'ODK Project 7 • Form: baseline_2026_2027_ZZK2.0_Mymensingh_Narsingdi_Narayanganj';
+        doc.setFontSize(8);
+        doc.text(formText, margin, 23);
+
+        currentY = 34;
+
+        // Metadata & Audit Box (Mentions Generation Date as requested)
+        doc.setFillColor(248, 250, 252); // slate-50
+        doc.setDrawColor(226, 232, 240); // slate-200
+        doc.roundedRect(margin, currentY, pageWidth - (margin * 2), 22, 2, 2, 'FD');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8);
+        doc.setTextColor(71, 85, 105);
+        doc.text('REPORT METADATA', margin + 4, currentY + 6);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.setTextColor(15, 23, 42);
+        doc.text(`Generated Date & Time: ${data.generated_at_display || new Date().toLocaleString()}`, margin + 4, currentY + 11.5);
+        doc.text(`Active Target Date: ${data.selected_date || data.today_date}`, margin + 4, currentY + 17);
+
+        const scopeData = (reportType === 'today') ? data.today : data.overall;
+        const totalSubmissions = scopeData ? scopeData.total : 0;
+        const totalDistricts = scopeData ? (scopeData.districts ? scopeData.districts.length : 0) : 0;
+        const totalInterviewers = scopeData ? (scopeData.interviewers ? scopeData.interviewers.length : 0) : 0;
+
+        doc.setFont('helvetica', 'bold');
+        doc.text(`Submissions in Scope: ${totalSubmissions}`, pageWidth - margin - 65, currentY + 6.5);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Districts in Scope: ${totalDistricts}`, pageWidth - margin - 65, currentY + 11.5);
+        doc.text(`Active Enumerators: ${totalInterviewers}`, pageWidth - margin - 65, currentY + 17);
+
+        currentY += 28;
+
+        // Helper to draw tables
+        function drawSectionTables(title, subData, startY, isTodayScope) {
+          let y = startY;
+
+          // Section Title
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.setTextColor(15, 23, 42);
+          doc.text(title, margin, y);
+          y += 3;
+
+          // Table 1: District-wise Table
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.setTextColor(71, 85, 105);
+          doc.text(`1. District-wise Submissions Breakdown (${subData.districts ? subData.districts.length : 0} Districts)`, margin, y + 4);
+
+          const districtRows = (subData.districts && subData.districts.length > 0)
+            ? subData.districts.map((d, idx) => [
+              (idx + 1).toString(),
+              d.name || `District ${d.code}`,
+              d.code.toString(),
+              d.count.toString(),
+              `${d.percentage}%`
+            ])
+            : [['-', 'No submissions recorded', '-', '0', '0.0%']];
+
+          doc.autoTable({
+            startY: y + 6,
+            margin: { left: margin, right: margin },
+            head: [['#', 'District Name', 'Code', 'Submissions', 'Percent (%)']],
+            body: districtRows,
+            foot: [['', 'Total', '', subData.total.toString(), '100.0%']],
+            theme: 'grid',
+            headStyles: { fillColor: isTodayScope ? [13, 148, 136] : [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+            footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8 },
+            styles: { fontSize: 8, cellPadding: 2.2 },
+            columnStyles: {
+              0: { cellWidth: 10, halign: 'center' },
+              1: { cellWidth: 'auto' },
+              2: { cellWidth: 20, halign: 'center' },
+              3: { cellWidth: 26, halign: 'right' },
+              4: { cellWidth: 24, halign: 'right' }
+            }
+          });
+
+          y = doc.lastAutoTable.finalY + 8;
+
+          // Check if new page is needed before table 2
+          if (y > pageHeight - 65) {
+            doc.addPage();
+            y = 20;
+          }
+
+          // Table 2: Interviewer-wise Table
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8.5);
+          doc.setTextColor(71, 85, 105);
+          doc.text(`2. Interviewer-wise Submissions Breakdown (${subData.interviewers ? subData.interviewers.length : 0} Enumerators)`, margin, y);
+
+          const interviewerRows = (subData.interviewers && subData.interviewers.length > 0)
+            ? subData.interviewers.map((inv, idx) => [
+              (idx + 1).toString(),
+              inv.name || `Interviewer ${inv.code}`,
+              inv.code.toString(),
+              inv.count.toString(),
+              `${inv.percentage}%`
+            ])
+            : [['-', 'No submissions recorded', '-', '0', '0.0%']];
+
+          doc.autoTable({
+            startY: y + 2,
+            margin: { left: margin, right: margin },
+            head: [['#', 'Interviewer Name', 'Code', 'Submissions', 'Percent (%)']],
+            body: interviewerRows,
+            foot: [['', 'Total', '', subData.total.toString(), '100.0%']],
+            theme: 'grid',
+            headStyles: { fillColor: isTodayScope ? [5, 150, 105] : [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8 },
+            footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 8 },
+            styles: { fontSize: 8, cellPadding: 2 },
+            columnStyles: {
+              0: { cellWidth: 10, halign: 'center' },
+              1: { cellWidth: 'auto' },
+              2: { cellWidth: 20, halign: 'center' },
+              3: { cellWidth: 26, halign: 'right' },
+              4: { cellWidth: 24, halign: 'right' }
+            }
+          });
+
+          return doc.lastAutoTable.finalY + 10;
+        }
+
+        if (reportType === 'today') {
+          currentY = drawSectionTables(`TODAY'S ACTIVITY REPORT (${data.selected_date || data.today_date})`, data.today, currentY, true);
+
+          // Add Overall reference context if space permits
+          if (currentY > pageHeight - 65) {
+            doc.addPage();
+            currentY = 20;
+          }
+          currentY = drawSectionTables('OVERALL CUMULATIVE BENCHMARK PROGRESS', data.overall, currentY, false);
+        } else {
+          currentY = drawSectionTables('OVERALL CUMULATIVE SURVEY PROGRESS', data.overall, currentY, false);
+
+          if (data.today && data.today.total > 0) {
+            if (currentY > pageHeight - 65) {
+              doc.addPage();
+              currentY = 20;
+            }
+            currentY = drawSectionTables(`TODAY'S ACTIVITY BENCHMARK (${data.selected_date || data.today_date})`, data.today, currentY, true);
+          }
+        }
+
+        // Add Page Numbers and Footer on every page
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let p = 1; p <= totalPages; p++) {
+          doc.setPage(p);
+          doc.setDrawColor(226, 232, 240);
+          doc.setLineWidth(0.3);
+          doc.line(margin, pageHeight - 12, pageWidth - margin, pageHeight - 12);
+
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7.5);
+          doc.setTextColor(148, 163, 184);
+          doc.text(`Brick Kiln Data Quality Monitor • Generated: ${data.generated_at_display || new Date().toLocaleString()}`, margin, pageHeight - 7);
+          doc.text(`Page ${p} of ${totalPages}`, pageWidth - margin - 16, pageHeight - 7);
+        }
+
+        // Save & download PDF
+        const targetDate = data.selected_date || data.today_date;
+        const pdfFileName = `Brick_Kiln_${reportType === 'today' ? 'Daily' : 'Overall'}_Report_${targetDate}.pdf`;
+        doc.save(pdfFileName);
+        showToast(`Report downloaded: ${pdfFileName}`, 'success');
+
+      } catch (pdfErr) {
+        console.error('Error creating PDF:', pdfErr);
+        showToast('Failed to generate PDF report. Check console for details.', 'error');
+      }
     }
 
     // Toast Notification System

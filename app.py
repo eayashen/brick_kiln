@@ -1608,6 +1608,174 @@ async def api_get_sync_logs(user: Dict[str, Any] = Depends(get_current_user)):
 
 
 # ------------------------------------------------------------------------------
+# Reports & Field Analytics Endpoints
+# ------------------------------------------------------------------------------
+_district_cache = {"mtime": 0, "map": {}}
+_interviewer_cache = {"mtime": 0, "map": {}}
+
+
+def get_district_map() -> Dict[str, str]:
+    global _district_cache
+    csv_path = os.path.join(os.path.dirname(__file__), "District.csv")
+    if not os.path.exists(csv_path):
+        return _district_cache["map"]
+    try:
+        mtime = os.path.getmtime(csv_path)
+        if mtime != _district_cache["mtime"]:
+            d_map = {}
+            with open(csv_path, mode="r", encoding="utf-8-sig") as f:
+                reader = csv.reader(f)
+                next(reader, None)  # skip header
+                for row in reader:
+                    if len(row) >= 2 and row[0].strip():
+                        code = row[0].strip()
+                        name = row[1].strip()
+                        d_map[code] = name
+                        if code.isdigit():
+                            d_map[str(int(code))] = name
+            _district_cache = {"mtime": mtime, "map": d_map}
+    except Exception as e:
+        logger.error(f"Error reading District.csv: {e}")
+    return _district_cache["map"]
+
+
+def get_interviewer_map() -> Dict[str, str]:
+    global _interviewer_cache
+    csv_path = os.path.join(os.path.dirname(__file__), "Rule3.csv")
+    if not os.path.exists(csv_path):
+        return _interviewer_cache["map"]
+    try:
+        mtime = os.path.getmtime(csv_path)
+        if mtime != _interviewer_cache["mtime"]:
+            i_map = {}
+            with open(csv_path, mode="r", encoding="utf-8-sig") as f:
+                reader = csv.reader(f)
+                next(reader, None)  # skip header
+                for row in reader:
+                    if len(row) >= 2 and row[0].strip():
+                        code = row[0].strip()
+                        name = row[1].strip()
+                        i_map[code] = name
+                        if code.isdigit():
+                            i_map[str(int(code))] = name
+            _interviewer_cache = {"mtime": mtime, "map": i_map}
+    except Exception as e:
+        logger.error(f"Error reading Rule3.csv: {e}")
+    return _interviewer_cache["map"]
+
+
+@app.get("/api/reports/summary")
+async def api_get_reports_summary(
+    date: Optional[str] = None,
+    user: Dict[str, Any] = Depends(get_current_user)
+):
+    """
+    Returns aggregated district-wise and interviewer-wise submission statistics
+    for both Overall data and Today's (or specified date) data, with names mapped
+    from District.csv and Rule3.csv.
+    """
+    district_map = get_district_map()
+    interviewer_map = get_interviewer_map()
+    records = db_store.get_clean_all()
+
+    # Local timezone Bangladesh +06:00
+    tz_local = timezone(timedelta(hours=6))
+    now_local = datetime.now(timezone.utc).astimezone(tz_local)
+    today_str = now_local.strftime("%Y-%m-%d")
+
+    # Helper to parse local date of a record
+    def get_record_date(r: Dict[str, Any]) -> str:
+        s_date = str(r.get("SubmissionDate", "")).strip()
+        if s_date:
+            try:
+                dt = datetime.fromisoformat(s_date.replace("Z", "+00:00"))
+                return dt.astimezone(tz_local).strftime("%Y-%m-%d")
+            except Exception:
+                if len(s_date) >= 10:
+                    return s_date[:10]
+        c_date = str(r.get("collection_date", "")).strip()
+        if len(c_date) >= 10:
+            return c_date[:10]
+        return ""
+
+    # Map records to date and collect date stats
+    date_counts: Dict[str, int] = {}
+    for r in records:
+        d = get_record_date(r)
+        if d:
+            date_counts[d] = date_counts.get(d, 0) + 1
+
+    available_dates = sorted(list(date_counts.keys()), reverse=True)
+    latest_active_date = available_dates[0] if available_dates else today_str
+
+    # Selected date
+    selected_date = date.strip() if (date and date.strip()) else today_str
+
+    def aggregate_records(recs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        total = len(recs)
+        dist_counts: Dict[str, int] = {}
+        inv_counts: Dict[str, int] = {}
+
+        for r in recs:
+            d_code = str(r.get("kiln_district", "")).strip()
+            if d_code:
+                dist_counts[d_code] = dist_counts.get(d_code, 0) + 1
+
+            i_code = str(r.get("interviewer", "")).strip()
+            if i_code:
+                inv_counts[i_code] = inv_counts.get(i_code, 0) + 1
+
+        dist_list = []
+        for code, count in sorted(dist_counts.items(), key=lambda x: x[1], reverse=True):
+            name = district_map.get(code, f"District {code}")
+            pct = round((count / total) * 100, 1) if total > 0 else 0.0
+            dist_list.append({
+                "code": code,
+                "name": name,
+                "count": count,
+                "percentage": pct
+            })
+
+        inv_list = []
+        for code, count in sorted(inv_counts.items(), key=lambda x: x[1], reverse=True):
+            name = interviewer_map.get(code, f"Interviewer {code}")
+            pct = round((count / total) * 100, 1) if total > 0 else 0.0
+            inv_list.append({
+                "code": code,
+                "name": name,
+                "count": count,
+                "percentage": pct
+            })
+
+        return {
+            "total": total,
+            "districts": dist_list,
+            "interviewers": inv_list
+        }
+
+    overall_summary = aggregate_records(records)
+
+    # Filter records for selected_date
+    today_records = [r for r in records if get_record_date(r) == selected_date]
+    today_summary = aggregate_records(today_records)
+
+    return {
+        "status": "success",
+        "generated_at": now_local.strftime("%Y-%m-%d %H:%M:%S"),
+        "generated_at_display": now_local.strftime("%d %b %Y, %I:%M %p"),
+        "today_date": today_str,
+        "selected_date": selected_date,
+        "latest_active_date": latest_active_date,
+        "available_dates": [
+            {"date": d, "count": date_counts[d], "label": f"{d} ({date_counts[d]} submissions)"}
+            for d in available_dates
+        ],
+        "overall": overall_summary,
+        "today": today_summary
+    }
+
+
+# ------------------------------------------------------------------------------
 # Export Endpoints
 # ------------------------------------------------------------------------------
 
