@@ -1545,20 +1545,7 @@ async def api_get_submissions(
     if search:
         s = search.lower().strip()
         records = [
-            r for r in records if (
-                s in str(r.get("kiln_id", "")).lower() or
-                s in str(r.get("kiln_name", "")).lower() or
-                s in str(r.get("kiln_owner_name", "")).lower() or
-                s in str(r.get("kiln_owner_phone", "")).lower() or
-                s in str(r.get("kiln_upazila_label", "")).lower() or
-                s in str(r.get("dist_geocode", "")).lower() or
-                s in str(r.get("interviewer", "")).lower() or
-                s in str(r.get("meta-instanceID", "")).lower() or
-                s in str(r.get("instanceID", "")).lower() or
-                s in str(r.get("worker_name", "")).lower() or
-                s in str(r.get("kiln_unique_id", "")).lower() or
-                s in str(r.get("worker_unique_id", "")).lower()
-            )
+            r for r in records if s in str(r.get("kiln_id", "")).lower()
         ]
 
     if consent and consent != "all":

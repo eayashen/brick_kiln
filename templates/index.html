@@ -430,8 +430,26 @@
               <tr
                 class="bg-[#0d1527] light:bg-slate-100 text-slate-400 light:text-slate-600 uppercase tracking-wider font-semibold border-b border-[#1e293b] light:border-slate-200">
                 <th class="py-3 px-4">Severity</th>
-                <th class="py-3 px-4">Submission By</th>
-                <th class="py-3 px-4">Field</th>
+                <th class="py-3 px-4">
+                  <div class="flex items-center justify-between gap-2">
+                    <span>Submission By</span>
+                    <button id="sort-btn-submitter" onclick="sortFindingsBy('submitter')" type="button"
+                      class="inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-slate-800/80 light:bg-slate-200 text-slate-300 light:text-slate-600 border border-slate-700 light:border-slate-300 hover:text-indigo-400 light:hover:text-indigo-600 hover:border-indigo-500/50 transition cursor-pointer"
+                      title="Sort by Submission By">
+                      <i class="fa-solid fa-arrow-down-a-z text-[11px]"></i>
+                    </button>
+                  </div>
+                </th>
+                <th class="py-3 px-4">
+                  <div class="flex items-center justify-between gap-2">
+                    <span>Field</span>
+                    <button id="sort-btn-field" onclick="sortFindingsBy('field')" type="button"
+                      class="inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-slate-800/80 light:bg-slate-200 text-slate-300 light:text-slate-600 border border-slate-700 light:border-slate-300 hover:text-indigo-400 light:hover:text-indigo-600 hover:border-indigo-500/50 transition cursor-pointer"
+                      title="Sort by Field">
+                      <i class="fa-solid fa-arrow-down-a-z text-[11px]"></i>
+                    </button>
+                  </div>
+                </th>
                 <th class="py-3 px-4">Original Value</th>
                 <th class="py-3 px-4">Detected Issue</th>
                 <th class="py-3 px-4">Status</th>
@@ -471,14 +489,14 @@
           <div class="flex items-center space-x-2 w-full md:w-auto">
             <div class="relative flex-1 md:w-64">
               <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-400">
-                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                <i id="registry-search-icon" class="fa-solid fa-magnifying-glass text-xs"></i>
               </span>
-              <input type="text" id="registry-search" oninput="searchRegistry()"
-                placeholder="Search Kiln ID, name, owner, phone, upazila..."
+              <input type="text" id="registry-search" onkeydown="handleRegistrySearchKey(event)"
+                placeholder="Search Kiln ID (Press Enter)..."
                 class="w-full pl-8 pr-3 py-1.5 bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-lg text-xs text-slate-100 light:text-slate-900 placeholder-slate-400 focus:outline-none focus:border-indigo-500">
             </div>
 
-            <select id="registry-consent-filter" onchange="searchRegistry()"
+            <select id="registry-consent-filter" onchange="searchRegistry('filter')"
               class="px-2.5 py-1.5 bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-lg text-xs text-slate-200 light:text-slate-800 focus:outline-none">
               <option value="all">All Submissions</option>
               <option value="yes">Consent: Yes</option>
@@ -508,14 +526,27 @@
             <tbody id="registry-table-body"
               class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-200 light:text-slate-800">
               <tr>
-                <td colspan="10" class="py-8 text-center text-slate-400">Loading submissions...</td>
+                <td colspan="10" class="py-16 text-center">
+                  <div class="inline-flex flex-col items-center justify-center space-y-3">
+                    <div
+                      class="w-10 h-10 rounded-full bg-indigo-500/10 light:bg-indigo-50 flex items-center justify-center">
+                      <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 light:text-indigo-600 text-xl"></i>
+                    </div>
+                    <div class="text-xs font-semibold text-slate-200 light:text-slate-800 tracking-wide">Loading
+                      submissions...</div>
+                    <div class="text-[11px] text-slate-400 light:text-slate-500">Please wait while we retrieve the
+                      records</div>
+                  </div>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
 
-        <div id="registry-pagination" class="mt-3 flex items-center justify-between text-xs text-slate-400">
+        <div id="registry-pagination"
+          class="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
           <span id="registry-count-info">Showing records</span>
+          <div id="registry-page-controls" class="flex items-center space-x-2"></div>
         </div>
 
       </div>
@@ -1207,7 +1238,9 @@
       findings: [],
       submissions: [],
       selectedFinding: null,
-      reviewAction: 'approve'
+      reviewAction: 'approve',
+      findingsSortField: null,
+      findingsSortOrder: 'asc'
     };
 
     // Initialize application on page load
@@ -1408,11 +1441,30 @@
     // Render Findings Table
     function renderFindingsTable() {
       const tbody = document.getElementById('findings-table-body');
-      let filtered = state.findings;
+      let filtered = [...state.findings];
 
       if (state.currentFilter !== 'all') {
         filtered = filtered.filter(f => f.category === state.currentFilter);
       }
+
+      // Apply sorting if a sort field is active
+      if (state.findingsSortField) {
+        const order = state.findingsSortOrder === 'desc' ? -1 : 1;
+        filtered.sort((a, b) => {
+          let valA = '';
+          let valB = '';
+          if (state.findingsSortField === 'submitter') {
+            valA = (a.SubmitterName && a.SubmitterName !== '-') ? a.SubmitterName : (a.interviewer && a.interviewer !== '-' ? a.interviewer : 'Field Enumerator');
+            valB = (b.SubmitterName && b.SubmitterName !== '-') ? b.SubmitterName : (b.interviewer && b.interviewer !== '-' ? b.interviewer : 'Field Enumerator');
+          } else if (state.findingsSortField === 'field') {
+            valA = a.field || '';
+            valB = b.field || '';
+          }
+          return String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' }) * order;
+        });
+      }
+
+      updateFindingsSortButtons();
 
       if (filtered.length === 0) {
         const isDbEmpty = Boolean(state.kpi && state.kpi.total_submissions === 0);
@@ -1484,6 +1536,48 @@
           </tr>
         `;
       }).join('');
+    }
+
+    // Sort Findings Table by Submission By or Field (A-Z / Z-A toggle)
+    function sortFindingsBy(field) {
+      if (state.findingsSortField === field) {
+        state.findingsSortOrder = (state.findingsSortOrder === 'asc') ? 'desc' : 'asc';
+      } else {
+        state.findingsSortField = field;
+        state.findingsSortOrder = 'asc';
+      }
+      renderFindingsTable();
+    }
+
+    function updateFindingsSortButtons() {
+      const submitterBtn = document.getElementById('sort-btn-submitter');
+      const fieldBtn = document.getElementById('sort-btn-field');
+
+      if (submitterBtn) {
+        if (state.findingsSortField === 'submitter') {
+          const isAsc = state.findingsSortOrder === 'asc';
+          submitterBtn.className = 'inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-indigo-600 text-white border border-indigo-500 shadow-sm transition cursor-pointer';
+          submitterBtn.innerHTML = `<i class="fa-solid ${isAsc ? 'fa-arrow-down-a-z' : 'fa-arrow-up-z-a'} text-[11px]"></i>`;
+          submitterBtn.title = isAsc ? 'Sorted A-Z. Click for Z-A' : 'Sorted Z-A. Click for A-Z';
+        } else {
+          submitterBtn.className = 'inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-slate-800/80 light:bg-slate-200 text-slate-300 light:text-slate-600 border border-slate-700 light:border-slate-300 hover:text-indigo-400 light:hover:text-indigo-600 hover:border-indigo-500/50 transition cursor-pointer';
+          submitterBtn.innerHTML = `<i class="fa-solid fa-arrow-down-a-z text-[11px]"></i>`;
+          submitterBtn.title = 'Sort by Submission By';
+        }
+      }
+
+      if (fieldBtn) {
+        if (state.findingsSortField === 'field') {
+          const isAsc = state.findingsSortOrder === 'asc';
+          fieldBtn.className = 'inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-indigo-600 text-white border border-indigo-500 shadow-sm transition cursor-pointer';
+          fieldBtn.innerHTML = `<i class="fa-solid ${isAsc ? 'fa-arrow-down-a-z' : 'fa-arrow-up-z-a'} text-[11px]"></i>`;
+          fieldBtn.title = isAsc ? 'Sorted A-Z. Click for Z-A' : 'Sorted Z-A. Click for A-Z';
+        } else {
+          fieldBtn.className = 'inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-slate-800/80 light:bg-slate-200 text-slate-300 light:text-slate-600 border border-slate-700 light:border-slate-300 hover:text-indigo-400 light:hover:text-indigo-600 hover:border-indigo-500/50 transition cursor-pointer';
+          fieldBtn.innerHTML = `<i class="fa-solid fa-arrow-down-a-z text-[11px]"></i>`;
+          fieldBtn.title = 'Sort by Field';
+        }
+      }
     }
 
     // Helper to determine if finding involves Kiln ID / interrelated cascading fields
@@ -1983,36 +2077,295 @@
       }
     }
 
-    // Submissions Registry
-    async function loadSubmissionsRegistry() {
-      try {
-        const search = document.getElementById('registry-search') ? document.getElementById('registry-search').value : '';
-        const consent = document.getElementById('registry-consent-filter') ? document.getElementById('registry-consent-filter').value : 'all';
+    // -------------------------------------------------------------------------
+    // Submissions Registry State & Request Management
+    // -------------------------------------------------------------------------
+    const registryState = {
+      searchDebounceTimer: null,
+      abortController: null,
+      activeRequestId: 0,
+      isLoading: false,
+      currentAction: 'initial', // 'initial' | 'search' | 'filter'
+      lastSearch: null,
+      lastConsent: null,
+      page: 1,
+      pageSize: 100,
+      totalRecords: 0
+    };
 
-        const q = new URLSearchParams({ search, consent, limit: 100 });
-        const resp = await fetch(`/api/submissions?${q.toString()}`, {
-          headers: { 'Authorization': `Bearer ${state.token}` }
-        });
-
-        if (resp.ok) {
-          const data = await resp.json();
-          state.submissions = data.records;
-          renderRegistryTable(data.records);
-          document.getElementById('registry-count-info').textContent = `Total ${data.total} submissions loaded from database`;
-        }
-      } catch (e) {
-        console.error('Error fetching submissions registry:', e);
+    function handleRegistrySearchKey(event) {
+      if (event.key === 'Enter' || event.keyCode === 13) {
+        event.preventDefault();
+        searchRegistry('search');
       }
     }
 
-    function searchRegistry() {
-      loadSubmissionsRegistry();
+    function setRegistrySearchIcon(isLoading) {
+      const icon = document.getElementById('registry-search-icon');
+      if (!icon) return;
+      if (isLoading) {
+        icon.className = 'fa-solid fa-circle-notch fa-spin text-xs text-indigo-400';
+      } else {
+        icon.className = 'fa-solid fa-magnifying-glass text-xs text-slate-400';
+      }
+    }
+
+    function renderRegistryLoadingState(message = 'Loading submissions...') {
+      const tbody = document.getElementById('registry-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="10" class="py-16 text-center">
+            <div class="inline-flex flex-col items-center justify-center space-y-3">
+              <div class="w-10 h-10 rounded-full bg-indigo-500/10 light:bg-indigo-50 flex items-center justify-center">
+                <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 light:text-indigo-600 text-xl"></i>
+              </div>
+              <div class="text-xs font-semibold text-slate-200 light:text-slate-800 tracking-wide">${escapeHtml(message)}</div>
+              <div class="text-[11px] text-slate-400 light:text-slate-500">Please wait while we retrieve the records</div>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    function renderRegistryEmptyState(message = 'No submissions found matching your search.') {
+      const tbody = document.getElementById('registry-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="10" class="py-14 text-center text-slate-400 light:text-slate-500">
+            <div class="inline-flex flex-col items-center justify-center space-y-2">
+              <div class="w-10 h-10 rounded-full bg-slate-800/40 light:bg-slate-100 flex items-center justify-center text-slate-500 mb-1">
+                <i class="fa-solid fa-magnifying-glass text-lg"></i>
+              </div>
+              <div class="text-xs font-semibold text-slate-300 light:text-slate-700">${escapeHtml(message)}</div>
+              <div class="text-[11px] text-slate-500">Try adjusting your search terms or clearing the consent filter</div>
+              <button onclick="clearRegistryFilters()" class="mt-2 px-3 py-1 bg-slate-800 light:bg-slate-200 hover:bg-slate-700 light:hover:bg-slate-300 text-xs rounded border border-slate-700 light:border-slate-300 text-slate-200 light:text-slate-800 transition">
+                Clear Filters
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    function renderRegistryErrorState(message = 'Unable to load submissions. Please try again.') {
+      const tbody = document.getElementById('registry-table-body');
+      if (!tbody) return;
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="10" class="py-14 text-center text-rose-400 light:text-rose-600">
+            <div class="inline-flex flex-col items-center justify-center space-y-2">
+              <div class="w-10 h-10 rounded-full bg-rose-500/10 light:bg-rose-50 flex items-center justify-center text-rose-400 mb-1">
+                <i class="fa-solid fa-triangle-exclamation text-lg"></i>
+              </div>
+              <div class="text-xs font-semibold">${escapeHtml(message)}</div>
+              <button onclick="loadSubmissionsRegistry('initial', true)" class="mt-2 px-3.5 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 text-xs font-medium rounded-lg border border-rose-500/30 transition">
+                <i class="fa-solid fa-rotate-right mr-1.5"></i> Retry
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }
+
+    function clearRegistryFilters() {
+      const searchInput = document.getElementById('registry-search');
+      const consentSelect = document.getElementById('registry-consent-filter');
+      if (searchInput) searchInput.value = '';
+      if (consentSelect) consentSelect.value = 'all';
+      registryState.lastSearch = null;
+      registryState.lastConsent = null;
+      searchRegistry('filter');
+    }
+
+    function updateRegistryPagination(total, page, limit, count, search, consent) {
+      const countEl = document.getElementById('registry-count-info');
+      const controlsEl = document.getElementById('registry-page-controls');
+
+      let filterDesc = '';
+      if (search) filterDesc += ` matching "${search}"`;
+      if (consent && consent !== 'all') filterDesc += ` (Consent: ${consent.toUpperCase()})`;
+
+      if (countEl) {
+        if (total === 0) {
+          countEl.textContent = `No submissions found${filterDesc}`;
+        } else {
+          const start = (page - 1) * limit + 1;
+          const end = Math.min(start + count - 1, total);
+          countEl.textContent = `Showing ${start}-${end} of ${total} submissions${filterDesc}`;
+        }
+      }
+
+      if (controlsEl) {
+        const totalPages = Math.ceil(total / limit);
+        if (totalPages <= 1) {
+          controlsEl.innerHTML = '';
+          return;
+        }
+
+        controlsEl.innerHTML = `
+          <div class="flex items-center space-x-1.5">
+            <button onclick="changeRegistryPage(${page - 1})" ${page <= 1 ? 'disabled' : ''}
+              class="px-2.5 py-1 rounded bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-xs text-slate-300 light:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 light:hover:bg-slate-200 transition">
+              <i class="fa-solid fa-chevron-left text-[10px]"></i>
+            </button>
+            <span class="text-[11px] text-slate-400 light:text-slate-500 font-mono px-1">Page ${page} of ${totalPages}</span>
+            <button onclick="changeRegistryPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}
+              class="px-2.5 py-1 rounded bg-[#0d1527] light:bg-slate-100 border border-slate-700 light:border-slate-300 text-xs text-slate-300 light:text-slate-700 disabled:opacity-40 disabled:cursor-not-allowed hover:bg-slate-800 light:hover:bg-slate-200 transition">
+              <i class="fa-solid fa-chevron-right text-[10px]"></i>
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    function changeRegistryPage(newPage) {
+      if (newPage < 1) return;
+      executeSubmissionsRegistryFetch('Loading submissions...', newPage);
+    }
+
+    // Submissions Registry Entrypoint
+    async function loadSubmissionsRegistry(actionType = 'initial', force = false) {
+      // If data is already in memory and not forcing refresh, render cached records immediately
+      if (!force && actionType === 'initial' && state.submissions && state.submissions.length > 0 && !registryState.isLoading) {
+        renderRegistryTable(state.submissions);
+        const search = document.getElementById('registry-search') ? document.getElementById('registry-search').value.trim() : '';
+        const consent = document.getElementById('registry-consent-filter') ? document.getElementById('registry-consent-filter').value : 'all';
+        updateRegistryPagination(registryState.totalRecords || state.submissions.length, registryState.page || 1, registryState.pageSize || 100, state.submissions.length, search, consent);
+        return;
+      }
+
+      let actionText = 'Loading submissions...';
+      if (actionType === 'search') actionText = 'Searching submissions...';
+      else if (actionType === 'filter') actionText = 'Applying filters...';
+
+      renderRegistryLoadingState(actionText);
+      await executeSubmissionsRegistryFetch(actionText, 1);
+    }
+
+    // Search and Filter Trigger: Search on Enter, Filter on Select Change
+    function searchRegistry(triggerType = 'search') {
+      const searchInput = document.getElementById('registry-search');
+      const consentSelect = document.getElementById('registry-consent-filter');
+      const search = searchInput ? searchInput.value.trim() : '';
+      const consent = consentSelect ? consentSelect.value : 'all';
+
+      // Prevent duplicate overlapping request if already loading with exact same query
+      if (registryState.isLoading && registryState.lastSearch === search && registryState.lastConsent === consent) {
+        return;
+      }
+      registryState.lastSearch = search;
+      registryState.lastConsent = consent;
+
+      // Determine proper user-facing text
+      let actionText = 'Searching submissions...';
+      if (triggerType === 'filter') {
+        actionText = search ? 'Searching & filtering submissions...' : 'Applying filters...';
+      } else if (triggerType === 'search') {
+        actionText = (consent !== 'all') ? 'Searching & filtering submissions...' : 'Searching submissions...';
+      }
+
+      // Clear any pending debounce timer
+      if (registryState.searchDebounceTimer) {
+        clearTimeout(registryState.searchDebounceTimer);
+        registryState.searchDebounceTimer = null;
+      }
+
+      // Visual indicator on search icon
+      setRegistrySearchIcon(true);
+      renderRegistryLoadingState(actionText);
+
+      // Execute search immediately upon Enter key or consent dropdown change
+      executeSubmissionsRegistryFetch(actionText, 1);
+    }
+
+    // Fetch Execution Engine with AbortController and Stale Request Guard
+    async function executeSubmissionsRegistryFetch(actionText = 'Loading submissions...', page = 1) {
+      if (!state.token) return;
+
+      const searchInput = document.getElementById('registry-search');
+      const consentSelect = document.getElementById('registry-consent-filter');
+      const search = searchInput ? searchInput.value.trim() : '';
+      const consent = consentSelect ? consentSelect.value : 'all';
+
+      // Abort previous in-flight request if still running
+      if (registryState.abortController) {
+        registryState.abortController.abort();
+        registryState.abortController = null;
+      }
+
+      // Create new AbortController and track unique requestId
+      const abortController = new AbortController();
+      registryState.abortController = abortController;
+      const requestId = ++registryState.activeRequestId;
+
+      registryState.isLoading = true;
+      registryState.currentAction = actionText;
+      setRegistrySearchIcon(true);
+
+      const limit = registryState.pageSize || 100;
+      const offset = (page - 1) * limit;
+      const q = new URLSearchParams({ search, consent, limit: limit.toString(), offset: offset.toString() });
+
+      try {
+        const resp = await fetch(`/api/submissions?${q.toString()}`, {
+          headers: { 'Authorization': `Bearer ${state.token}` },
+          signal: abortController.signal
+        });
+
+        // Discard result if newer request has been triggered (stale guard)
+        if (requestId !== registryState.activeRequestId) {
+          return;
+        }
+
+        if (!resp.ok) {
+          throw new Error(`HTTP Error ${resp.status}`);
+        }
+
+        const data = await resp.json();
+
+        // Final check before state & DOM mutation
+        if (requestId !== registryState.activeRequestId) {
+          return;
+        }
+
+        registryState.isLoading = false;
+        setRegistrySearchIcon(false);
+
+        state.submissions = data.records || [];
+        registryState.totalRecords = data.total || 0;
+        registryState.page = page;
+
+        if (!data.records || data.records.length === 0) {
+          renderRegistryEmptyState('No submissions found matching your search.');
+        } else {
+          renderRegistryTable(data.records);
+        }
+
+        updateRegistryPagination(data.total, page, limit, (data.records || []).length, search, consent);
+
+      } catch (err) {
+        // If request was aborted by a subsequent search/filter, ignore silently
+        if (err.name === 'AbortError') {
+          return;
+        }
+
+        // Only display error if this request was the latest active one
+        if (requestId === registryState.activeRequestId) {
+          registryState.isLoading = false;
+          setRegistrySearchIcon(false);
+          console.error('Error fetching submissions registry:', err);
+          renderRegistryErrorState('Unable to load submissions. Please try again.');
+        }
+      }
     }
 
     function renderRegistryTable(records) {
       const tbody = document.getElementById('registry-table-body');
+      if (!tbody) return;
       if (!records || records.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-slate-400">No matching submissions found</td></tr>`;
+        renderRegistryEmptyState('No submissions found matching your search.');
         return;
       }
 
