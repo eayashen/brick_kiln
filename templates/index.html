@@ -511,13 +511,30 @@
             <thead>
               <tr
                 class="bg-[#0d1527] light:bg-slate-100 text-slate-400 light:text-slate-600 uppercase tracking-wider font-semibold border-b border-[#1e293b] light:border-slate-200">
-                <th class="py-3 px-3">Date</th>
-                <th class="py-3 px-3">Kiln ID</th>
+                <th class="py-3 px-3 whitespace-nowrap">
+                  <div class="flex items-center justify-between gap-1.5">
+                    <span>Date</span>
+                    <button id="registry-sort-btn-date" onclick="sortRegistryBy('date')" type="button"
+                      class="inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-slate-800/80 light:bg-slate-200 text-slate-300 light:text-slate-600 border border-slate-700 light:border-slate-300 hover:text-indigo-400 light:hover:text-indigo-600 hover:border-indigo-500/50 transition cursor-pointer"
+                      title="Sort by Date">
+                      <i class="fa-solid fa-arrow-down-a-z text-[11px]"></i>
+                    </button>
+                  </div>
+                </th>
+                <th class="py-3 px-3 whitespace-nowrap">
+                  <div class="flex items-center justify-between gap-1.5">
+                    <span>Kiln ID</span>
+                    <button id="registry-sort-btn-kiln-id" onclick="sortRegistryBy('kiln_id')" type="button"
+                      class="inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-slate-800/80 light:bg-slate-200 text-slate-300 light:text-slate-600 border border-slate-700 light:border-slate-300 hover:text-indigo-400 light:hover:text-indigo-600 hover:border-indigo-500/50 transition cursor-pointer"
+                      title="Sort by Kiln ID">
+                      <i class="fa-solid fa-arrow-down-a-z text-[11px]"></i>
+                    </button>
+                  </div>
+                </th>
                 <th class="py-3 px-3">Kiln Name</th>
                 <th class="py-3 px-3">Owner Name</th>
                 <th class="py-3 px-3">Owner Phone</th>
                 <th class="py-3 px-3">Upazila</th>
-                <th class="py-3 px-3">Owner Age</th>
                 <th class="py-3 px-3 text-center">This Year Operate</th>
                 <th class="py-3 px-3 text-center">Previous Year Operate</th>
                 <th class="py-3 px-3 text-center">Inspect</th>
@@ -526,7 +543,7 @@
             <tbody id="registry-table-body"
               class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-200 light:text-slate-800">
               <tr>
-                <td colspan="10" class="py-16 text-center">
+                <td colspan="9" class="py-16 text-center">
                   <div class="inline-flex flex-col items-center justify-center space-y-3">
                     <div
                       class="w-10 h-10 rounded-full bg-indigo-500/10 light:bg-indigo-50 flex items-center justify-center">
@@ -1038,7 +1055,7 @@
         <div class="text-slate-300 font-medium pt-1" id="modal-detected-issue">--</div>
         <div class="text-slate-400 text-[11px] pt-1 border-t border-slate-800 flex justify-between">
           <span>Current Value: <strong id="modal-current-val" class="text-amber-400 font-mono">--</strong></span>
-          <span id="modal-worker-context" class="text-slate-300">Worker: --</span>
+          <span id="modal-worker-context" class="text-slate-300">Kiln ID: --</span>
         </div>
       </div>
 
@@ -1611,8 +1628,8 @@
       document.getElementById('modal-detected-issue').textContent = item.detected_issue;
       document.getElementById('modal-current-val').textContent = item.original_value;
       const interviewerDisplay = item.interviewer && item.interviewer !== '-' ? item.interviewer : 'N/A';
-      const workerDisplay = item.worker_name && item.worker_name !== '-' ? item.worker_name : 'N/A';
-      document.getElementById('modal-worker-context').textContent = `Interviewer: ${interviewerDisplay} • Name / Owner: ${workerDisplay}`;
+      const kilnIdDisplay = item.kiln_id && item.kiln_id !== '-' ? item.kiln_id : 'N/A';
+      document.getElementById('modal-worker-context').textContent = `Kiln ID: ${kilnIdDisplay}`;
 
       const badge = document.getElementById('modal-severity-badge');
       badge.textContent = item.severity;
@@ -2088,6 +2105,8 @@
       currentAction: 'initial', // 'initial' | 'search' | 'filter'
       lastSearch: null,
       lastConsent: null,
+      sortField: null,
+      sortOrder: 'asc',
       page: 1,
       pageSize: 100,
       totalRecords: 0
@@ -2115,7 +2134,7 @@
       if (!tbody) return;
       tbody.innerHTML = `
         <tr>
-          <td colspan="10" class="py-16 text-center">
+          <td colspan="9" class="py-16 text-center">
             <div class="inline-flex flex-col items-center justify-center space-y-3">
               <div class="w-10 h-10 rounded-full bg-indigo-500/10 light:bg-indigo-50 flex items-center justify-center">
                 <i class="fa-solid fa-circle-notch fa-spin text-indigo-500 light:text-indigo-600 text-xl"></i>
@@ -2133,7 +2152,7 @@
       if (!tbody) return;
       tbody.innerHTML = `
         <tr>
-          <td colspan="10" class="py-14 text-center text-slate-400 light:text-slate-500">
+          <td colspan="9" class="py-14 text-center text-slate-400 light:text-slate-500">
             <div class="inline-flex flex-col items-center justify-center space-y-2">
               <div class="w-10 h-10 rounded-full bg-slate-800/40 light:bg-slate-100 flex items-center justify-center text-slate-500 mb-1">
                 <i class="fa-solid fa-magnifying-glass text-lg"></i>
@@ -2154,7 +2173,7 @@
       if (!tbody) return;
       tbody.innerHTML = `
         <tr>
-          <td colspan="10" class="py-14 text-center text-rose-400 light:text-rose-600">
+          <td colspan="9" class="py-14 text-center text-rose-400 light:text-rose-600">
             <div class="inline-flex flex-col items-center justify-center space-y-2">
               <div class="w-10 h-10 rounded-full bg-rose-500/10 light:bg-rose-50 flex items-center justify-center text-rose-400 mb-1">
                 <i class="fa-solid fa-triangle-exclamation text-lg"></i>
@@ -2369,6 +2388,25 @@
         return;
       }
 
+      let displayRecords = [...records];
+      if (registryState.sortField) {
+        const order = registryState.sortOrder === 'desc' ? -1 : 1;
+        displayRecords.sort((a, b) => {
+          let valA = '';
+          let valB = '';
+          if (registryState.sortField === 'date') {
+            valA = a.collection_date || a.survey_date || (a.SubmissionDate ? a.SubmissionDate.split('T')[0] : '');
+            valB = b.collection_date || b.survey_date || (b.SubmissionDate ? b.SubmissionDate.split('T')[0] : '');
+          } else if (registryState.sortField === 'kiln_id') {
+            valA = a.kiln_id || a.kiln_unique_id || '';
+            valB = b.kiln_id || b.kiln_unique_id || '';
+          }
+          return String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: 'base' }) * order;
+        });
+      }
+
+      updateRegistrySortButtons();
+
       const formatOperateBadge = (val) => {
         if (!val || val === '-') return '<span class="text-slate-500 font-mono">-</span>';
         const s = String(val).trim().toLowerCase();
@@ -2380,7 +2418,7 @@
         return `<span class="px-2 py-0.5 rounded bg-slate-700/40 text-slate-300 border border-slate-600/40 text-[10px]">${val}</span>`;
       };
 
-      tbody.innerHTML = records.map(r => {
+      tbody.innerHTML = displayRecords.map(r => {
         const instId = r['meta-instanceID'] || r.instanceId || r.KEY || r.instanceID || '-';
         const dateStr = r.collection_date || r.survey_date || (r.SubmissionDate ? r.SubmissionDate.split('T')[0] : '-');
         const safeId = encodeURIComponent(instId);
@@ -2390,7 +2428,6 @@
         const ownerName = r.kiln_owner_name || r.worker_name || '-';
         const ownerPhone = r.kiln_owner_phone || '-';
         const upazila = r.kiln_upazila_label || r.kiln_upazila || '-';
-        const age = r.kiln_owner_age_years ?? r.worker_age ?? '-';
         const thisYearOperate = r.kiln_operate_plan ?? r['kiln_operation_information-kiln_operate_plan'] ?? '-';
         const prevYearOperate = r.kiln_operation_previous_year ?? r['previous_season_note-kiln_operation_previous_year'] ?? '-';
 
@@ -2402,7 +2439,6 @@
             <td class="py-2.5 px-3 font-medium text-slate-300 light:text-slate-800 whitespace-nowrap">${ownerName}</td>
             <td class="py-2.5 px-3 font-mono text-slate-300 light:text-slate-700 whitespace-nowrap">${ownerPhone}</td>
             <td class="py-2.5 px-3 text-slate-300 light:text-slate-700 whitespace-nowrap">${upazila}</td>
-            <td class="py-2.5 px-3 whitespace-nowrap font-mono">${age}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">${formatOperateBadge(thisYearOperate)}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">${formatOperateBadge(prevYearOperate)}</td>
             <td class="py-2.5 px-3 text-center whitespace-nowrap">
@@ -2413,6 +2449,48 @@
           </tr>
         `;
       }).join('');
+    }
+
+    // Sort Submissions Registry Table by Date or Kiln ID
+    function sortRegistryBy(field) {
+      if (registryState.sortField === field) {
+        registryState.sortOrder = (registryState.sortOrder === 'asc') ? 'desc' : 'asc';
+      } else {
+        registryState.sortField = field;
+        registryState.sortOrder = 'asc';
+      }
+      renderRegistryTable(state.submissions);
+    }
+
+    function updateRegistrySortButtons() {
+      const dateBtn = document.getElementById('registry-sort-btn-date');
+      const kilnBtn = document.getElementById('registry-sort-btn-kiln-id');
+
+      if (dateBtn) {
+        if (registryState.sortField === 'date') {
+          const isAsc = registryState.sortOrder === 'asc';
+          dateBtn.className = 'inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-indigo-600 text-white border border-indigo-500 shadow-sm transition cursor-pointer';
+          dateBtn.innerHTML = `<i class="fa-solid ${isAsc ? 'fa-arrow-down-a-z' : 'fa-arrow-up-z-a'} text-[11px]"></i>`;
+          dateBtn.title = isAsc ? 'Sorted A-Z. Click for Z-A' : 'Sorted Z-A. Click for A-Z';
+        } else {
+          dateBtn.className = 'inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-slate-800/80 light:bg-slate-200 text-slate-300 light:text-slate-600 border border-slate-700 light:border-slate-300 hover:text-indigo-400 light:hover:text-indigo-600 hover:border-indigo-500/50 transition cursor-pointer';
+          dateBtn.innerHTML = `<i class="fa-solid fa-arrow-down-a-z text-[11px]"></i>`;
+          dateBtn.title = 'Sort by Date';
+        }
+      }
+
+      if (kilnBtn) {
+        if (registryState.sortField === 'kiln_id') {
+          const isAsc = registryState.sortOrder === 'asc';
+          kilnBtn.className = 'inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-indigo-600 text-white border border-indigo-500 shadow-sm transition cursor-pointer';
+          kilnBtn.innerHTML = `<i class="fa-solid ${isAsc ? 'fa-arrow-down-a-z' : 'fa-arrow-up-z-a'} text-[11px]"></i>`;
+          kilnBtn.title = isAsc ? 'Sorted A-Z. Click for Z-A' : 'Sorted Z-A. Click for A-Z';
+        } else {
+          kilnBtn.className = 'inline-flex items-center justify-center w-5 h-5 rounded text-[11px] bg-slate-800/80 light:bg-slate-200 text-slate-300 light:text-slate-600 border border-slate-700 light:border-slate-300 hover:text-indigo-400 light:hover:text-indigo-600 hover:border-indigo-500/50 transition cursor-pointer';
+          kilnBtn.innerHTML = `<i class="fa-solid fa-arrow-down-a-z text-[11px]"></i>`;
+          kilnBtn.title = 'Sort by Kiln ID';
+        }
+      }
     }
 
     function inspectRecord(encodedId) {
