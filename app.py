@@ -32,6 +32,8 @@ RAW_COLLECTION = os.getenv("RAW_COLLECTION", "raw_submissions")
 CLEAN_COLLECTION = os.getenv("CLEAN_COLLECTION", "cleaned_submissions")
 AUDIT_COLLECTION = os.getenv("AUDIT_COLLECTION", "audit_logs")
 SYNC_COLLECTION = "sync_logs"
+USERS_COLLECTION = "dashboard_users"
+SUPER_ADMINS = {"eayashen", "meftah"}
 
 ODK_BASE_URL = os.getenv("ODK_BASE_URL", "https://woodsinstitute.getodk.cloud").rstrip("/")
 ODK_EMAIL = os.getenv("ODK_EMAIL", "")
@@ -118,15 +120,17 @@ USERS_DB = {
         "username": "eayashen",
         "password_hash": bcrypt.hashpw(DASHBOARD_ADMIN_PASSWORD.encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
         "display_name": "Eayashen",
-        "role": "Quality Architect & Admin",
-        "avatar_color": "indigo"
+        "role": "Admin",
+        "avatar_color": "indigo",
+        "is_super_admin": True
     },
     "meftah": {
         "username": "meftah",
         "password_hash": bcrypt.hashpw(DASHBOARD_REVIEWER_PASSWORD.encode("utf-8"), bcrypt.gensalt()).decode("utf-8"),
         "display_name": "Meftah",
-        "role": "Data Quality Reviewer",
-        "avatar_color": "emerald"
+        "role": "Admin",
+        "avatar_color": "emerald",
+        "is_super_admin": True
     }
 }
 
@@ -218,9 +222,11 @@ class ResilientDBStore:
             RAW_COLLECTION: {},
             CLEAN_COLLECTION: {},
             AUDIT_COLLECTION: [],
-            SYNC_COLLECTION: []
+            SYNC_COLLECTION: [],
+            USERS_COLLECTION: {}
         }
         self._init_connection()
+        self.init_users()
         self.purge_sample_records()
 
     def _init_connection(self):
@@ -474,6 +480,103 @@ class ResilientDBStore:
             return list(self.db[SYNC_COLLECTION].find({}, {"_id": 0}).sort("timestamp", pymongo.DESCENDING).limit(limit))
         return self.memory_store[SYNC_COLLECTION][:limit]
 
+    def init_users(self):
+        global USERS_DB
+        if self.is_connected_to_mongo:
+            try:
+                # Ensure default admins exist in MongoDB
+                for uname in SUPER_ADMINS:
+                    existing = self.db[USERS_COLLECTION].find_one({"username": uname})
+                    if not existing:
+                        udata = dict(USERS_DB[uname])
+                        self.db[USERS_COLLECTION].insert_one(udata)
+                    else:
+                        self.db[USERS_COLLECTION].update_one(
+                            {"username": uname},
+                            {"$set": {"is_super_admin": True, "role": "Admin"}}
+                        )
+                # Load all users from MongoDB into USERS_DB
+                docs = list(self.db[USERS_COLLECTION].find({}, {"_id": 0}))
+                for doc in docs:
+                    uname = doc.get("username")
+                    if uname:
+                        if uname in SUPER_ADMINS:
+                            doc["is_super_admin"] = True
+                            doc["role"] = "Admin"
+                        USERS_DB[uname] = doc
+                logger.info("Loaded %d users from MongoDB (%s)", len(docs), USERS_COLLECTION)
+            except Exception as e:
+                logger.warning("Could not sync users from MongoDB: %s", str(e))
+        else:
+            if USERS_COLLECTION not in self.memory_store:
+                self.memory_store[USERS_COLLECTION] = {}
+            for uname in SUPER_ADMINS:
+                if uname not in self.memory_store[USERS_COLLECTION]:
+                    self.memory_store[USERS_COLLECTION][uname] = dict(USERS_DB[uname])
+            for uname, udata in self.memory_store[USERS_COLLECTION].items():
+                if uname in SUPER_ADMINS:
+                    udata["is_super_admin"] = True
+                    udata["role"] = "Admin"
+                USERS_DB[uname] = udata
+            self._save_fallback()
+
+    def save_user(self, user_dict: Dict[str, Any]):
+        global USERS_DB
+        username = user_dict["username"]
+        USERS_DB[username] = user_dict
+        if self.is_connected_to_mongo:
+            try:
+                # Do not store Mongo ObjectId in memory dict
+                to_save = dict(user_dict)
+                to_save.pop("_id", None)
+                self.db[USERS_COLLECTION].replace_one({"username": username}, to_save, upsert=True)
+                logger.info("User '%s' persisted to MongoDB (%s)", username, USERS_COLLECTION)
+            except Exception as e:
+                logger.error("Failed to save user '%s' to MongoDB: %s", username, str(e))
+        else:
+            if USERS_COLLECTION not in self.memory_store:
+                self.memory_store[USERS_COLLECTION] = {}
+            self.memory_store[USERS_COLLECTION][username] = dict(user_dict)
+            self._save_fallback()
+            logger.info("User '%s' persisted to local store", username)
+
+    def get_all_users(self) -> List[Dict[str, Any]]:
+        users = []
+        for uname, udata in USERS_DB.items():
+            is_super = uname.lower() in SUPER_ADMINS
+            users.append({
+                "username": udata.get("username", uname),
+                "display_name": udata.get("display_name", uname),
+                "role": "Admin" if is_super else udata.get("role", "User"),
+                "avatar_color": udata.get("avatar_color", "indigo"),
+                "is_super_admin": is_super,
+                "created_at": udata.get("created_at"),
+                "created_by": udata.get("created_by")
+            })
+        return sorted(users, key=lambda x: (not x["is_super_admin"], x["username"]))
+
+    def delete_user(self, username: str) -> bool:
+        global USERS_DB
+        uname = username.lower()
+        if uname in USERS_DB:
+            del USERS_DB[uname]
+
+        if self.is_connected_to_mongo:
+            try:
+                self.db[USERS_COLLECTION].delete_one({"username": uname})
+                logger.info("User '%s' deleted from MongoDB (%s)", uname, USERS_COLLECTION)
+                return True
+            except Exception as e:
+                logger.error("Failed to delete user '%s' from MongoDB: %s", uname, str(e))
+                return False
+        else:
+            if USERS_COLLECTION in self.memory_store and uname in self.memory_store[USERS_COLLECTION]:
+                del self.memory_store[USERS_COLLECTION][uname]
+                self._save_fallback()
+                logger.info("User '%s' deleted from local store", uname)
+                return True
+        return True
+
     def purge_sample_records(self):
         sample_ids = [
             "uuid:58f4715f-b5b3-4cee-857d-909d1da12152",
@@ -590,11 +693,12 @@ app.add_middleware(
 
 security = HTTPBearer(auto_error=False)
 
-def create_jwt_token(username: str, display_name: str, role: str) -> str:
+def create_jwt_token(username: str, display_name: str, role: str, is_super_admin: bool = False) -> str:
     payload = {
         "sub": username,
         "name": display_name,
         "role": role,
+        "is_super_admin": is_super_admin,
         "exp": datetime.now(timezone.utc) + timedelta(days=7),
         "iat": datetime.now(timezone.utc)
     }
@@ -620,12 +724,14 @@ async def get_current_user(request: Request, auth: Optional[HTTPAuthorizationCre
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         username = payload.get("sub")
-        if username not in USERS_DB:
+        if not username or username not in USERS_DB:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user session")
+        is_super = username.lower() in SUPER_ADMINS
         return {
             "username": username,
             "display_name": payload.get("name", username),
-            "role": payload.get("role", "Reviewer")
+            "role": "Admin" if is_super else payload.get("role", "Reviewer"),
+            "is_super_admin": is_super
         }
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired. Please log in again.")
@@ -1062,6 +1168,12 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class CreateUserRequest(BaseModel):
+    username: str
+    password: str
+    display_name: str
+    role: Optional[str] = "User"
+
 class ResolveFindingRequest(BaseModel):
     instanceID: str
     finding_id: str
@@ -1078,8 +1190,9 @@ class ResolveFindingRequest(BaseModel):
 
 @app.post("/api/login")
 async def api_login(req: LoginRequest):
-    username = req.username.strip()
-    user_record = USERS_DB.get(username)
+    raw_username = req.username.strip()
+    username = raw_username.lower()
+    user_record = USERS_DB.get(username) or USERS_DB.get(raw_username)
     if not user_record:
         raise HTTPException(status_code=401, detail="Invalid username or password")
     
@@ -1087,13 +1200,18 @@ async def api_login(req: LoginRequest):
     if not bcrypt.checkpw(req.password.encode("utf-8"), user_record["password_hash"].encode("utf-8")):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
-    token = create_jwt_token(username, user_record["display_name"], user_record["role"])
+    actual_username = user_record.get("username", username)
+    is_super = actual_username.lower() in SUPER_ADMINS
+    role = "Admin" if is_super else user_record.get("role", "Data Quality Reviewer")
+
+    token = create_jwt_token(actual_username, user_record["display_name"], role, is_super_admin=is_super)
     
     response = JSONResponse(content={
         "token": token,
-        "username": username,
+        "username": actual_username,
         "display_name": user_record["display_name"],
-        "role": user_record["role"]
+        "role": role,
+        "is_super_admin": is_super
     })
     # Set HTTP-only cookie as well for browser persistence
     response.set_cookie(key="token", value=token, httponly=False, max_age=86400 * 7, samesite="lax")
@@ -1102,7 +1220,109 @@ async def api_login(req: LoginRequest):
 
 @app.get("/api/me")
 async def api_me(user: Dict[str, Any] = Depends(get_current_user)):
+    user["is_super_admin"] = user.get("username", "").lower() in SUPER_ADMINS
     return user
+
+
+@app.post("/api/users")
+async def api_create_user(req: CreateUserRequest, current_user: Dict[str, Any] = Depends(get_current_user)):
+    actor = current_user.get("username", "").strip().lower()
+    if actor not in SUPER_ADMINS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied: Only Administrators (meftah and eayashen) can create new users."
+        )
+
+    username = req.username.strip().lower()
+    if not username:
+        raise HTTPException(status_code=400, detail="Username cannot be empty.")
+    if len(username) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters long.")
+    if not re.match(r"^[a-zA-Z0-9_\-\.]+$", username):
+        raise HTTPException(status_code=400, detail="Username can only contain letters, numbers, dots, dashes, and underscores.")
+
+    if username in USERS_DB:
+        raise HTTPException(status_code=400, detail=f"User '{username}' already exists.")
+
+    password = req.password.strip()
+    if len(password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters long.")
+
+    display_name = req.display_name.strip()
+    if not display_name:
+        display_name = username.capitalize()
+
+    role = (req.role or "User").strip()
+    
+    avatar_color_options = ["sky", "purple", "emerald", "amber", "rose", "indigo"]
+    color_idx = sum(ord(c) for c in username) % len(avatar_color_options)
+    avatar_color = avatar_color_options[color_idx]
+
+    password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+    user_record = {
+        "username": username,
+        "password_hash": password_hash,
+        "display_name": display_name,
+        "role": role,
+        "avatar_color": avatar_color,
+        "is_super_admin": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": actor
+    }
+
+    db_store.save_user(user_record)
+    logger.info("New user '%s' created by admin '%s'", username, actor)
+
+    return {
+        "status": "success",
+        "message": f"User '{username}' created successfully.",
+        "user": {
+            "username": username,
+            "display_name": display_name,
+            "role": role,
+            "avatar_color": avatar_color,
+            "is_super_admin": False
+        }
+    }
+
+
+@app.get("/api/users")
+async def api_get_users(current_user: Dict[str, Any] = Depends(get_current_user)):
+    return {
+        "users": db_store.get_all_users()
+    }
+
+
+@app.delete("/api/users/{username}")
+async def api_delete_user(username: str, current_user: Dict[str, Any] = Depends(get_current_user)):
+    actor = current_user.get("username", "").strip().lower()
+    if actor not in SUPER_ADMINS:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Permission denied: Only Administrators (meftah and eayashen) can delete users."
+        )
+
+    target = username.strip().lower()
+    if target in SUPER_ADMINS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete Administrator accounts (eayashen, meftah)."
+        )
+
+    if target not in USERS_DB:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User '{target}' does not exist."
+        )
+
+    db_store.delete_user(target)
+    logger.info("User '%s' deleted by admin '%s'", target, actor)
+
+    return {
+        "status": "success",
+        "message": f"User '{target}' has been deleted successfully."
+    }
 
 
 @app.get("/api/run-validation")
