@@ -56,7 +56,36 @@ ODK_FORM_ID=baseline_2026_2027_ZZK2.0_Mymensingh_Narsingdi_Narayanganj
 ODK_EMAIL=<your-odk-email>
 ODK_PASSWORD=<your-odk-password>
 JWT_SECRET_KEY=<your-secret-key>
+
+# Environment & Automatic Synchronization Settings
+APP_ENV=production                       # "production", "development", or "test"
+# Optional overrides (active ONLY in development / test):
+# ODK_SYNC_TEST_CRON=*/5 * * * *         # Custom cron expression in Asia/Dhaka
+# ODK_SYNC_INTERVAL_MINUTES=10           # Test interval in minutes
 ```
+
+---
+
+## ⏰ Automatic ODK Central Synchronization (Asia/Dhaka)
+
+The platform includes an automated in-process background scheduler (using APScheduler) paired with MongoDB distributed locking to synchronize field submissions twice daily:
+
+- **Schedule**: Twice daily at **12:00 AM (00:00)** and **12:00 PM (12:00) Bangladesh Standard Time (`Asia/Dhaka`, UTC+6)**, independent of host OS timezone.
+- **Distributed Locking (`sync_locks` collection)**:
+  - Multi-worker and multi-replica safe: uses atomic MongoDB `findOneAndUpdate` locking.
+  - Exactly one worker runs the sync when triggered.
+  - Automatic stale lock recovery lease (30 minutes) protects against server crashes mid-sync.
+- **Incremental Ingestion & Deduplication**:
+  - Unique index on `instance_id` in `raw_submissions`.
+  - Only net-new submissions are inserted into `raw_submissions` (untouched original payload).
+  - Validation engine runs exclusively on net-new records into `cleaned_submissions`.
+  - Reviewer edits (`_modified_fields`) and resolved flags (`_resolved_flags`) are never overwritten.
+  - Watermark (`last_successful_sync`) advances only upon complete, error-free execution.
+- **Real-Time Status & Metrics API**:
+  - `GET /api/sync-status`: Exposes current status (`Running` / `Success` / `Failed`), next scheduled sync (BST), last attempt (BST), latest run metrics (imported, skipped duplicates, validated), and error details.
+  - `POST /api/sync-odk`: Reuses the identical sync pipeline and distributed lock for manual triggers.
+
+---
 
 ### 4. Running the Application
 Start the FastAPI server using Uvicorn:

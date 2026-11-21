@@ -577,14 +577,82 @@
 
         <!-- Column 1: ODK Central + User Section -->
         <div class="space-y-4">
-          <!-- ODK Central Connection Card -->
+          <!-- ODK Central Connection & Schedule Card -->
           <div
-            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition">
-            <h3 class="text-sm font-bold text-white light:text-slate-900 mb-3 flex items-center space-x-2">
-              <i class="fa-solid fa-server text-indigo-400"></i>
-              <span>ODK Central Configuration</span>
-            </h3>
-            <div class="space-y-2.5 text-xs text-slate-300 light:text-slate-700">
+            class="bg-[#111a36] light:bg-white border border-[#1e293b] light:border-slate-200 rounded-xl p-5 shadow-sm theme-transition space-y-4">
+            
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-white light:text-slate-900 flex items-center space-x-2">
+                <i class="fa-solid fa-server text-indigo-400"></i>
+                <span>ODK Central Sync</span>
+              </h3>
+              <!-- Live Status Badge -->
+              <span id="sync-status-badge"
+                class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1.5">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span id="sync-status-text">Success</span>
+              </span>
+            </div>
+
+            <!-- Schedule & Live Status Panel -->
+            <div class="p-3 rounded-lg bg-[#0d1527] light:bg-slate-50 border border-slate-800 light:border-slate-200 space-y-2 text-xs">
+              <div class="flex items-center justify-between pb-1.5 border-b border-slate-800/80 light:border-slate-200">
+                <span class="text-[10px] uppercase text-slate-400 font-semibold flex items-center space-x-1">
+                  <i class="fa-solid fa-clock text-sky-400"></i>
+                  <span>Schedule</span>
+                </span>
+                <span class="text-[10px] font-semibold text-sky-300 light:text-sky-600 bg-sky-500/10 px-2 py-0.5 rounded">
+                  Twice Daily (12:00 AM & 12:00 PM BST)
+                </span>
+              </div>
+
+              <div>
+                <div class="text-[10px] uppercase text-slate-400 font-semibold">Next Scheduled Sync</div>
+                <div id="sync-next-run" class="font-mono text-emerald-400 font-medium text-[11px]">Calculating...</div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 pt-1">
+                <div>
+                  <div class="text-[10px] uppercase text-slate-400 font-semibold">Last Successful</div>
+                  <div id="sync-last-success" class="font-mono text-slate-200 light:text-slate-800 text-[11px] truncate">--</div>
+                </div>
+                <div>
+                  <div class="text-[10px] uppercase text-slate-400 font-semibold">Last Attempt</div>
+                  <div id="sync-last-attempt" class="font-mono text-slate-200 light:text-slate-800 text-[11px] truncate">--</div>
+                </div>
+              </div>
+
+              <!-- Latest Run Metrics -->
+              <div class="pt-2 border-t border-slate-800/80 light:border-slate-200">
+                <div class="text-[10px] uppercase text-slate-400 font-semibold mb-1.5">Latest Run Metrics</div>
+                <div class="grid grid-cols-3 gap-1.5 text-center">
+                  <div class="p-1.5 rounded bg-slate-900/60 light:bg-white border border-slate-800 light:border-slate-200">
+                    <div class="text-[10px] text-slate-400">Imported</div>
+                    <div id="sync-metric-imported" class="font-mono font-bold text-emerald-400 text-xs">0</div>
+                  </div>
+                  <div class="p-1.5 rounded bg-slate-900/60 light:bg-white border border-slate-800 light:border-slate-200">
+                    <div class="text-[10px] text-slate-400">Skipped</div>
+                    <div id="sync-metric-skipped" class="font-mono font-bold text-slate-300 light:text-slate-700 text-xs">0</div>
+                  </div>
+                  <div class="p-1.5 rounded bg-slate-900/60 light:bg-white border border-slate-800 light:border-slate-200">
+                    <div class="text-[10px] text-slate-400">Validated</div>
+                    <div id="sync-metric-validated" class="font-mono font-bold text-sky-400 text-xs">0</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Error Banner (revealed on failure) -->
+              <div id="sync-error-banner" class="hidden p-2 rounded bg-rose-500/10 border border-rose-500/30 text-rose-300 text-[11px] space-y-1">
+                <div class="font-semibold flex items-center space-x-1 text-rose-400">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                  <span>Last Attempt Failed</span>
+                </div>
+                <div id="sync-error-text" class="font-mono text-[10px] break-words"></div>
+              </div>
+            </div>
+
+            <!-- Configuration Endpoints -->
+            <div class="space-y-2 text-xs text-slate-300 light:text-slate-700">
               <div>
                 <div class="text-[10px] uppercase text-slate-400 font-semibold">ODK Base URL</div>
                 <div id="cfg-odk-url" class="font-mono text-slate-200 light:text-slate-900 truncate">--</div>
@@ -596,15 +664,16 @@
                 </div>
                 <div>
                   <div class="text-[10px] uppercase text-slate-400 font-semibold">Form ID</div>
-                  <div id="cfg-odk-form" class="font-mono text-slate-200 light:text-slate-900">--</div>
+                  <div id="cfg-odk-form" class="font-mono text-slate-200 light:text-slate-900 truncate">--</div>
                 </div>
               </div>
             </div>
+
             <div class="mt-4 pt-3 border-t border-slate-700 light:border-slate-200 space-y-2">
-              <button onclick="triggerSyncODK()"
-                class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm">
-                <i class="fa-solid fa-rotate"></i>
-                <span>Trigger Manual Sync</span>
+              <button id="btn-trigger-manual-sync" onclick="triggerSyncODK()"
+                class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold flex items-center justify-center space-x-2 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                <i id="btn-manual-sync-icon" class="fa-solid fa-rotate"></i>
+                <span id="btn-manual-sync-text">Trigger Manual Sync</span>
               </button>
 
               <!-- User Log Button (Admin Only) -->
@@ -711,17 +780,20 @@
               <thead>
                 <tr
                   class="bg-[#0d1527] light:bg-slate-100 text-slate-400 light:text-slate-600 uppercase tracking-wider font-semibold border-b border-[#1e293b] light:border-slate-200">
-                  <th class="py-2.5 px-3">Timestamp</th>
+                  <th class="py-2.5 px-3">Timestamp (BST)</th>
+                  <th class="py-2.5 px-3">Trigger</th>
                   <th class="py-2.5 px-3">Status</th>
-                  <th class="py-2.5 px-3">Synced</th>
+                  <th class="py-2.5 px-3">Duration</th>
+                  <th class="py-2.5 px-3">Imported</th>
+                  <th class="py-2.5 px-3">Skipped</th>
                   <th class="py-2.5 px-3">Message</th>
-                  <th class="py-2.5 px-3">Triggered By</th>
+                  <th class="py-2.5 px-3">Actor</th>
                 </tr>
               </thead>
               <tbody id="sync-logs-table-body"
                 class="divide-y divide-[#1e293b] light:divide-slate-200 text-slate-300 light:text-slate-700">
                 <tr>
-                  <td colspan="5" class="py-6 text-center text-slate-400">Loading sync logs...</td>
+                  <td colspan="8" class="py-6 text-center text-slate-400">Loading sync logs...</td>
                 </tr>
               </tbody>
             </table>
@@ -2083,10 +2155,15 @@
 
     // Sync ODK Central
     async function triggerSyncODK() {
-      const syncBtn = document.getElementById('btn-sync-odk');
-      const syncIcon = document.getElementById('sync-icon');
-      syncBtn.disabled = true;
-      syncIcon.classList.add('spin-active');
+      const navSyncBtn = document.getElementById('btn-sync-odk');
+      const navSyncIcon = document.getElementById('sync-icon');
+      const manualSyncBtn = document.getElementById('btn-trigger-manual-sync');
+      const manualSyncIcon = document.getElementById('btn-manual-sync-icon');
+
+      if (navSyncBtn) navSyncBtn.disabled = true;
+      if (navSyncIcon) navSyncIcon.classList.add('spin-active');
+      if (manualSyncBtn) manualSyncBtn.disabled = true;
+      if (manualSyncIcon) manualSyncIcon.classList.add('spin-active');
 
       showToast('Connecting to ODK Central API...', 'info');
 
@@ -2097,19 +2174,26 @@
         });
 
         const data = await resp.json();
-        if (resp.ok) {
-          showToast(data.message || `ODK Sync complete: ${data.records_synced} records`, 'success');
+        if (resp.status === 409) {
+          showToast(data.detail || 'Sync already in progress. Please wait for current sync to finish.', 'warning');
+        } else if (resp.ok) {
+          const imported = data.imported_count ?? data.records_synced ?? 0;
+          const skipped = data.skipped_duplicates_count ?? 0;
+          showToast(`ODK Sync completed: ${imported} imported, ${skipped} duplicate skipped`, 'success');
           await triggerRunValidation(false);
           await loadSubmissionsRegistry();
-          await loadSyncLogs();
         } else {
           showToast(data.detail || 'ODK Sync encountered an error', 'error');
         }
       } catch (e) {
         showToast('ODK server network timeout or error', 'error');
       } finally {
-        syncBtn.disabled = false;
-        syncIcon.classList.remove('spin-active');
+        if (navSyncBtn) navSyncBtn.disabled = false;
+        if (navSyncIcon) navSyncIcon.classList.remove('spin-active');
+        if (manualSyncBtn) manualSyncBtn.disabled = false;
+        if (manualSyncIcon) manualSyncIcon.classList.remove('spin-active');
+        await loadSyncStatus();
+        await loadSyncLogs();
       }
     }
 
@@ -2586,9 +2670,86 @@
       }
     }
 
-    // Load Sync Logs
+    // Load Sync Status
+    async function loadSyncStatus() {
+      if (!state.token) return;
+      try {
+        const resp = await fetch('/api/sync-status', {
+          headers: { 'Authorization': `Bearer ${state.token}` }
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          renderSyncStatusPanel(data);
+        }
+      } catch (err) {
+        console.error('Error fetching sync status:', err);
+      }
+    }
+
+    function renderSyncStatusPanel(data) {
+      if (!data) return;
+      const statusBadge = document.getElementById('sync-status-badge');
+      const statusText = document.getElementById('sync-status-text');
+      const nextRunEl = document.getElementById('sync-next-run');
+      const lastSuccEl = document.getElementById('sync-last-success');
+      const lastAttEl = document.getElementById('sync-last-attempt');
+      const metricImported = document.getElementById('sync-metric-imported');
+      const metricSkipped = document.getElementById('sync-metric-skipped');
+      const metricValidated = document.getElementById('sync-metric-validated');
+      const errorBanner = document.getElementById('sync-error-banner');
+      const errorText = document.getElementById('sync-error-text');
+      const manualSyncBtn = document.getElementById('btn-trigger-manual-sync');
+      const navSyncBtn = document.getElementById('btn-sync-odk');
+
+      const isRunning = data.current_status === 'Running' || data.is_locked;
+
+      if (statusBadge && statusText) {
+        if (isRunning) {
+          statusBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center space-x-1.5';
+          statusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"></span><span>Running</span>';
+        } else if (data.current_status === 'Failed') {
+          statusBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center space-x-1.5';
+          statusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span><span>Failed</span>';
+        } else {
+          statusBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center space-x-1.5';
+          statusBadge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span>Success</span>';
+        }
+      }
+
+      if (nextRunEl) {
+        nextRunEl.textContent = data.next_scheduled_sync?.dhaka || 'Twice Daily at 12:00 AM & 12:00 PM';
+      }
+      if (lastSuccEl) {
+        lastSuccEl.textContent = data.last_successful_sync?.dhaka || 'None recorded';
+      }
+      if (lastAttEl) {
+        lastAttEl.textContent = data.last_sync_attempt?.dhaka || 'None recorded';
+      }
+
+      if (metricImported) metricImported.textContent = data.latest_metrics?.imported_count ?? 0;
+      if (metricSkipped) metricSkipped.textContent = data.latest_metrics?.skipped_duplicates_count ?? 0;
+      if (metricValidated) metricValidated.textContent = data.latest_metrics?.validated_count ?? 0;
+
+      if (errorBanner && errorText) {
+        if (data.error_details && data.current_status === 'Failed') {
+          errorText.textContent = data.error_details;
+          errorBanner.classList.remove('hidden');
+        } else {
+          errorBanner.classList.add('hidden');
+        }
+      }
+
+      // Update button state
+      [manualSyncBtn, navSyncBtn].forEach(btn => {
+        if (!btn) return;
+        btn.disabled = isRunning;
+      });
+    }
+
+    // Load Sync Logs & Live Status
     async function loadSyncLogs() {
       await loadRegisteredUsers();
+      await loadSyncStatus();
       try {
         const resp = await fetch('/api/sync-logs', {
           headers: { 'Authorization': `Bearer ${state.token}` }
@@ -2601,7 +2762,6 @@
             document.getElementById('cfg-odk-url').textContent = data.config.odk_base_url || '--';
             document.getElementById('cfg-odk-project').textContent = data.config.odk_project_id || '--';
             document.getElementById('cfg-odk-form').textContent = data.config.odk_form_id || '--';
-            document.getElementById('cfg-odk-email').textContent = data.config.odk_email || '--';
           }
         }
       } catch (e) {
@@ -2612,7 +2772,7 @@
     function renderSyncLogs(logs) {
       const tbody = document.getElementById('sync-logs-table-body');
       if (!logs || logs.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-400">No sync execution logs recorded</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-slate-400">No sync execution logs recorded</td></tr>`;
         return;
       }
 
@@ -2620,20 +2780,35 @@
         let badge = 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
         if (l.status.includes('FAILED') || l.status.includes('ERROR')) {
           badge = 'bg-rose-500/20 text-rose-400 border border-rose-500/30';
-        } else if (l.status.includes('SIMULATED') || l.status.includes('SEED')) {
+        } else if (l.status.includes('RUNNING')) {
+          badge = 'bg-amber-500/20 text-amber-400 border border-amber-500/30';
+        } else if (l.status.includes('SIMULATED') || l.status.includes('SEED') || l.status.includes('CONFIG')) {
           badge = 'bg-sky-500/20 text-sky-400 border border-sky-500/30';
         }
 
-        const dateStr = l.timestamp ? new Date(l.timestamp).toLocaleString() : '-';
+        const dateStr = l.timestamp_dhaka || (l.timestamp ? new Date(l.timestamp).toLocaleString('en-US', { timeZone: 'Asia/Dhaka' }) + ' BST' : '-');
+        const trigger = (l.trigger_type || 'manual').toLowerCase();
+        const triggerBadge = trigger === 'scheduled'
+          ? '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-500/20 text-sky-400 border border-sky-500/30 whitespace-nowrap"><i class="fa-solid fa-clock text-[9px] mr-1"></i>Scheduled</span>'
+          : '<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 whitespace-nowrap"><i class="fa-solid fa-hand text-[9px] mr-1"></i>Manual</span>';
+
+        const durationStr = l.duration_seconds !== undefined && l.duration_seconds !== null ? `${l.duration_seconds}s` : '-';
+        const imported = l.imported_count ?? l.records_synced ?? 0;
+        const skipped = l.skipped_duplicates_count ?? 0;
 
         return `
           <tr class="hover:bg-slate-800/40 light:hover:bg-slate-50 transition border-b border-[#1e293b] light:border-slate-200">
-            <td class="py-2.5 px-3 font-mono text-[11px] text-slate-400 whitespace-nowrap">${dateStr}</td>
+            <td class="py-2.5 px-3 font-mono text-[11px] text-slate-300 light:text-slate-800 whitespace-nowrap">${dateStr}</td>
+            <td class="py-2.5 px-3 whitespace-nowrap">${triggerBadge}</td>
             <td class="py-2.5 px-3 whitespace-nowrap">
               <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badge}">${l.status}</span>
             </td>
-            <td class="py-2.5 px-3 font-mono font-semibold whitespace-nowrap">${l.records_synced ?? 0}</td>
-            <td class="py-2.5 px-3 text-slate-300 light:text-slate-700 text-xs">${l.message || '-'}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-400 text-xs whitespace-nowrap">${durationStr}</td>
+            <td class="py-2.5 px-3 font-mono font-semibold text-emerald-400 whitespace-nowrap">${imported}</td>
+            <td class="py-2.5 px-3 font-mono text-slate-400 whitespace-nowrap">${skipped}</td>
+            <td class="py-2.5 px-3 text-slate-300 light:text-slate-700 text-xs max-w-xs truncate" title="${l.message || l.error_message || ''}">
+              ${l.message || l.error_message || '-'}
+            </td>
             <td class="py-2.5 px-3 font-mono text-slate-400 text-xs whitespace-nowrap">${l.user || 'system'}</td>
           </tr>
         `;

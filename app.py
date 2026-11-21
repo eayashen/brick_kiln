@@ -4,7 +4,9 @@ import csv
 import json
 import logging
 from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 from typing import Dict, Any, List, Optional, Union, Tuple
+from contextlib import asynccontextmanager
 
 import requests
 import pandas as pd
@@ -18,6 +20,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import pymongo
 from pymongo import MongoClient
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -26,6 +31,8 @@ logger = logging.getLogger("brick_kiln_monitor")
 # Load environment variables
 load_dotenv(override=True)
 
+DHAKA_TZ = ZoneInfo("Asia/Dhaka")
+
 MONGODB_URI = os.getenv("MONGODB_URI", "")
 DATABASE_NAME = os.getenv("DATABASE_NAME", "odk_data_quality")
 RAW_COLLECTION = os.getenv("RAW_COLLECTION", "raw_submissions")
@@ -33,7 +40,13 @@ CLEAN_COLLECTION = os.getenv("CLEAN_COLLECTION", "cleaned_submissions")
 AUDIT_COLLECTION = os.getenv("AUDIT_COLLECTION", "audit_logs")
 SYNC_COLLECTION = "sync_logs"
 USERS_COLLECTION = "dashboard_users"
+LOCKS_COLLECTION = "sync_locks"
+SYNC_STATE_COLLECTION = "sync_state"
 SUPER_ADMINS = {"eayashen", "meftah"}
+
+APP_ENV = os.getenv("APP_ENV", os.getenv("NODE_ENV", "production")).lower()
+ODK_SYNC_TEST_CRON = os.getenv("ODK_SYNC_TEST_CRON")
+ODK_SYNC_INTERVAL_MINUTES = os.getenv("ODK_SYNC_INTERVAL_MINUTES")
 
 ODK_BASE_URL = os.getenv("ODK_BASE_URL", "https://woodsinstitute.getodk.cloud").rstrip("/")
 ODK_EMAIL = os.getenv("ODK_EMAIL", "")
@@ -223,9 +236,12 @@ class ResilientDBStore:
             CLEAN_COLLECTION: {},
             AUDIT_COLLECTION: [],
             SYNC_COLLECTION: [],
-            USERS_COLLECTION: {}
+            USERS_COLLECTION: {},
+            LOCKS_COLLECTION: {},
+            SYNC_STATE_COLLECTION: {}
         }
         self._init_connection()
+        self.init_sync_locks_and_indexes()
         self.init_users()
         self.purge_sample_records()
 
@@ -479,6 +495,285 @@ class ResilientDBStore:
         if self.is_connected_to_mongo:
             return list(self.db[SYNC_COLLECTION].find({}, {"_id": 0}).sort("timestamp", pymongo.DESCENDING).limit(limit))
         return self.memory_store[SYNC_COLLECTION][:limit]
+
+    def init_sync_locks_and_indexes(self):
+        """
+        Enforce unique index on instance_id in raw_submissions and initialize distributed sync lock document.
+        """
+        if self.is_connected_to_mongo:
+            try:
+                self.db[RAW_COLLECTION].create_index([("instance_id", pymongo.ASCENDING)], unique=True, sparse=True)
+                self.db[LOCKS_COLLECTION].update_one(
+                    {"_id": "odk_sync_lock"},
+                    {"$setOnInsert": {
+                        "is_locked": False,
+                        "locked_at": None,
+                        "locked_by": None,
+                        "lease_expires_at": None,
+                        "trigger_type": None
+                    }},
+                    upsert=True
+                )
+                self.db[SYNC_STATE_COLLECTION].update_one(
+                    {"_id": "odk_sync_state"},
+                    {"$setOnInsert": {
+                        "current_status": "Success",
+                        "last_successful_sync": None,
+                        "last_sync_attempt": None,
+                        "latest_metrics": {
+                            "imported_count": 0,
+                            "skipped_duplicates_count": 0,
+                            "validated_count": 0
+                        },
+                        "error_details": None,
+                        "last_trigger_type": None,
+                        "watermark_submission_date": None
+                    }},
+                    upsert=True
+                )
+                logger.info("Successfully initialized MongoDB indexes and sync_locks/sync_state documents.")
+            except Exception as e:
+                logger.error("Failed to initialize MongoDB sync indexes or locks: %s", str(e))
+        else:
+            locks = self.memory_store.setdefault(LOCKS_COLLECTION, {})
+            locks.setdefault("odk_sync_lock", {
+                "is_locked": False,
+                "locked_at": None,
+                "locked_by": None,
+                "lease_expires_at": None,
+                "trigger_type": None
+            })
+            states = self.memory_store.setdefault(SYNC_STATE_COLLECTION, {})
+            states.setdefault("odk_sync_state", {
+                "current_status": "Success",
+                "last_successful_sync": None,
+                "last_sync_attempt": None,
+                "latest_metrics": {
+                    "imported_count": 0,
+                    "skipped_duplicates_count": 0,
+                    "validated_count": 0
+                },
+                "error_details": None,
+                "last_trigger_type": None,
+                "watermark_submission_date": None
+            })
+            self._save_fallback()
+
+    def acquire_sync_lock(self, worker_id: str, trigger_type: str = "manual", lease_seconds: int = 1800) -> Tuple[bool, Optional[str]]:
+        """
+        Attempts to acquire the distributed sync lock.
+        Multi-worker safe via atomic findOneAndUpdate.
+        Automatically reclaims stale locks if lease_expires_at has passed.
+        """
+        now = datetime.now(timezone.utc)
+        lease_expires = now + timedelta(seconds=lease_seconds)
+
+        if self.is_connected_to_mongo:
+            try:
+                filter_q = {
+                    "_id": "odk_sync_lock",
+                    "$or": [
+                        {"is_locked": False},
+                        {"lease_expires_at": {"$lt": now}}
+                    ]
+                }
+                update_q = {
+                    "$set": {
+                        "is_locked": True,
+                        "locked_at": now,
+                        "locked_by": worker_id,
+                        "trigger_type": trigger_type,
+                        "lease_expires_at": lease_expires
+                    }
+                }
+                res = self.db[LOCKS_COLLECTION].find_one_and_update(
+                    filter_q,
+                    update_q,
+                    return_document=pymongo.ReturnDocument.AFTER
+                )
+                if res:
+                    return True, "Lock acquired successfully"
+
+                curr = self.db[LOCKS_COLLECTION].find_one({"_id": "odk_sync_lock"})
+                if curr and curr.get("is_locked"):
+                    locked_by = curr.get("locked_by", "another process")
+                    exp = curr.get("lease_expires_at")
+                    return False, f"Sync already in progress by {locked_by} (lease active until {exp})"
+                return False, "Sync lock contention"
+            except Exception as e:
+                logger.error("MongoDB lock acquisition error: %s", str(e))
+                return False, f"MongoDB lock acquisition failed: {str(e)}"
+        else:
+            locks = self.memory_store.setdefault(LOCKS_COLLECTION, {})
+            lock_doc = locks.setdefault("odk_sync_lock", {
+                "is_locked": False,
+                "lease_expires_at": None
+            })
+            is_locked = lock_doc.get("is_locked", False)
+            exp_val = lock_doc.get("lease_expires_at")
+            is_expired = False
+            if exp_val:
+                try:
+                    exp_dt = datetime.fromisoformat(exp_val) if isinstance(exp_val, str) else exp_val
+                    if exp_dt.tzinfo is None:
+                        exp_dt = exp_dt.replace(tzinfo=timezone.utc)
+                    if exp_dt < now:
+                        is_expired = True
+                except Exception:
+                    is_expired = True
+
+            if not is_locked or is_expired:
+                locks["odk_sync_lock"] = {
+                    "is_locked": True,
+                    "locked_at": now.isoformat(),
+                    "locked_by": worker_id,
+                    "trigger_type": trigger_type,
+                    "lease_expires_at": lease_expires.isoformat()
+                }
+                self._save_fallback()
+                return True, "Lock acquired (fallback)"
+            else:
+                return False, f"Sync already in progress by {lock_doc.get('locked_by')}"
+
+    def release_sync_lock(self, worker_id: Optional[str] = None):
+        """
+        Releases the distributed sync lock.
+        """
+        now = datetime.now(timezone.utc)
+        if self.is_connected_to_mongo:
+            try:
+                self.db[LOCKS_COLLECTION].update_one(
+                    {"_id": "odk_sync_lock"},
+                    {"$set": {
+                        "is_locked": False,
+                        "released_at": now,
+                        "lease_expires_at": None,
+                        "locked_by": None
+                    }}
+                )
+            except Exception as e:
+                logger.error("MongoDB lock release error: %s", str(e))
+        else:
+            locks = self.memory_store.setdefault(LOCKS_COLLECTION, {})
+            if "odk_sync_lock" in locks:
+                locks["odk_sync_lock"]["is_locked"] = False
+                locks["odk_sync_lock"]["lease_expires_at"] = None
+                locks["odk_sync_lock"]["locked_by"] = None
+                self._save_fallback()
+
+    def get_sync_lock_status(self) -> Dict[str, Any]:
+        now = datetime.now(timezone.utc)
+        if self.is_connected_to_mongo:
+            try:
+                doc = self.db[LOCKS_COLLECTION].find_one({"_id": "odk_sync_lock"}, {"_id": 0})
+                if not doc:
+                    return {"is_locked": False}
+                exp = doc.get("lease_expires_at")
+                if exp and isinstance(exp, datetime) and exp < now:
+                    return {"is_locked": False, "stale_lock": True}
+                return doc
+            except Exception as e:
+                logger.error("Error reading sync lock: %s", str(e))
+                return {"is_locked": False, "error": str(e)}
+        else:
+            locks = self.memory_store.get(LOCKS_COLLECTION, {})
+            return locks.get("odk_sync_lock", {"is_locked": False})
+
+    def get_sync_state(self) -> Dict[str, Any]:
+        if self.is_connected_to_mongo:
+            try:
+                doc = self.db[SYNC_STATE_COLLECTION].find_one({"_id": "odk_sync_state"}, {"_id": 0})
+                if doc:
+                    return doc
+            except Exception as e:
+                logger.error("Error reading sync state: %s", str(e))
+        else:
+            states = self.memory_store.get(SYNC_STATE_COLLECTION, {})
+            if "odk_sync_state" in states:
+                return dict(states["odk_sync_state"])
+
+        return {
+            "current_status": "Success",
+            "last_successful_sync": None,
+            "last_sync_attempt": None,
+            "latest_metrics": {
+                "imported_count": 0,
+                "skipped_duplicates_count": 0,
+                "validated_count": 0
+            },
+            "error_details": None,
+            "last_trigger_type": None,
+            "watermark_submission_date": None
+        }
+
+    def update_sync_state(self, updates: Dict[str, Any]):
+        if self.is_connected_to_mongo:
+            try:
+                self.db[SYNC_STATE_COLLECTION].update_one(
+                    {"_id": "odk_sync_state"},
+                    {"$set": updates},
+                    upsert=True
+                )
+            except Exception as e:
+                logger.error("Error updating sync state: %s", str(e))
+        else:
+            states = self.memory_store.setdefault(SYNC_STATE_COLLECTION, {})
+            curr = states.setdefault("odk_sync_state", {})
+            curr.update(updates)
+            self._save_fallback()
+
+    def is_raw_exists(self, instance_id: str) -> bool:
+        if not instance_id:
+            return False
+        inst_str = str(instance_id)
+        if self.is_connected_to_mongo:
+            query = {
+                "$or": [
+                    {"instance_id": inst_str},
+                    {"meta-instanceID": inst_str},
+                    {"KEY": inst_str}
+                ]
+            }
+            return self.db[RAW_COLLECTION].count_documents(query, limit=1) > 0
+        return inst_str in self.memory_store[RAW_COLLECTION]
+
+    def insert_raw_submission(self, doc: Dict[str, Any]) -> bool:
+        """
+        Inserts a single raw submission preserving the untouched original payload.
+        Returns True if inserted, False if duplicate.
+        """
+        inst_id = (
+            doc.get("instance_id") or 
+            doc.get("meta-instanceID") or 
+            doc.get("__id") or 
+            doc.get("KEY") or 
+            doc.get("instanceId")
+        )
+        if not inst_id:
+            return False
+        inst_str = str(inst_id)
+        doc["instance_id"] = inst_str
+        doc["meta-instanceID"] = inst_str
+        doc.setdefault("form_id", ODK_FORM_ID)
+        doc.setdefault("synced_at", datetime.now(timezone.utc))
+
+        if self.is_connected_to_mongo:
+            try:
+                self.db[RAW_COLLECTION].insert_one(doc)
+                return True
+            except pymongo.errors.DuplicateKeyError:
+                return False
+            except Exception as e:
+                if "duplicate key" in str(e).lower() or "e11000" in str(e).lower():
+                    return False
+                logger.error("Error inserting raw submission: %s", str(e))
+                raise
+        else:
+            if inst_str in self.memory_store[RAW_COLLECTION]:
+                return False
+            self.memory_store[RAW_COLLECTION][inst_str] = doc
+            self._save_fallback()
+            return True
 
     def init_users(self):
         global USERS_DB
@@ -1588,19 +1883,119 @@ async def api_resolve_finding(payload: ResolveFindingRequest, user: Dict[str, An
         raise HTTPException(status_code=400, detail="Invalid action. Must be 'approve' or 'edit'.")
 
 
-@app.post("/api/sync-odk")
-async def api_sync_odk(user: Dict[str, Any] = Depends(get_current_user)):
+def format_dhaka_timestamp(dt: Optional[Union[datetime, str]]) -> Optional[str]:
     """
-    1. Authenticate with ODK Central API (POST /v1/sessions).
-    2. Download submissions from /v1/projects/{ODK_PROJECT_ID}/forms/{ODK_FORM_ID}.svc/Submissions?$format=json.
-    3. Upsert original data into raw_submissions.
-    4. Upsert into cleaned_submissions without overwriting fields previously modified by users.
+    Format UTC datetime or ISO string to human-readable Bangladesh Standard Time (BST, UTC+6).
     """
-    actor = user.get("username", "system")
+    if not dt:
+        return None
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
+        except Exception:
+            return dt
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(DHAKA_TZ).strftime("%b %d, %Y, %I:%M:%S %p BST")
+
+
+def format_dhaka_iso(dt: Optional[Union[datetime, str]]) -> Optional[str]:
+    """
+    Format UTC datetime or ISO string to ISO 8601 string with Asia/Dhaka offset (+06:00).
+    """
+    if not dt:
+        return None
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
+        except Exception:
+            return dt
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(DHAKA_TZ).isoformat()
+
+
+def calculate_next_scheduled_sync(now_dt: Optional[datetime] = None) -> datetime:
+    """
+    Computes the next scheduled sync time strictly in Asia/Dhaka (UTC+6).
+    Production default: exactly twice daily at 12:00 AM (00:00) or 12:00 PM (12:00).
+    Respects test schedule override if active in dev/test environment.
+    """
+    if now_dt is None:
+        now_dt = datetime.now(timezone.utc)
+    if now_dt.tzinfo is None:
+        now_dt = now_dt.replace(tzinfo=timezone.utc)
+    now_dhaka = now_dt.astimezone(DHAKA_TZ)
+
+    # Check if active scheduler job has a computed next_run_time
+    global _scheduler_job
+    if _scheduler_job and getattr(_scheduler_job, "next_run_time", None):
+        return _scheduler_job.next_run_time.astimezone(DHAKA_TZ)
+
+    # Standard candidate windows: today 00:00, today 12:00, tomorrow 00:00, tomorrow 12:00
+    today = now_dhaka.date()
+    candidates = [
+        datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=DHAKA_TZ),
+        datetime(today.year, today.month, today.day, 12, 0, 0, tzinfo=DHAKA_TZ),
+        datetime(today.year, today.month, today.day, 0, 0, 0, tzinfo=DHAKA_TZ) + timedelta(days=1),
+        datetime(today.year, today.month, today.day, 12, 0, 0, tzinfo=DHAKA_TZ) + timedelta(days=1),
+    ]
+    for c in candidates:
+        if c > now_dhaka:
+            return c
+    return candidates[-1]
+
+
+async def execute_sync_odk(trigger_type: str = "scheduled", actor: str = "system") -> Dict[str, Any]:
+    """
+    Unified, idempotent ODK Central synchronization pipeline.
+    Executed by both the twice-daily background scheduler and manual user triggers.
+
+    Pipeline Steps:
+    1. Acquire atomic distributed MongoDB lock (sync_locks collection) with 30-min lease.
+    2. Check credentials & endpoints.
+    3. Authenticate with ODK Central API (POST /v1/sessions).
+    4. Fetch submissions via OData endpoint.
+    5. Deduplicate against existing raw_submissions collection.
+    6. Insert ONLY net-new raw submissions (original payload untouched).
+    7. Execute validation engine exclusively on net-new submissions.
+    8. Upsert clean records without overwriting manual user corrections.
+    9. Advance watermark and record comprehensive sync_logs & sync_state.
+    10. Release lock in finally block.
+    """
+    import uuid
+    worker_id = f"worker_{os.getpid()}_{uuid.uuid4().hex[:6]}"
+    start_time_utc = datetime.now(timezone.utc)
+    start_iso = start_time_utc.isoformat()
+
+    # Step 1: Acquire Distributed Lock
+    acquired, lock_msg = db_store.acquire_sync_lock(worker_id=worker_id, trigger_type=trigger_type, lease_seconds=1800)
+    if not acquired:
+        logger.warning("[%s] Sync lock acquisition blocked: %s", trigger_type.upper(), lock_msg)
+        if trigger_type == "manual":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Sync already in progress. {lock_msg}"
+            )
+        return {
+            "status": "skipped",
+            "message": f"Sync skipped: {lock_msg}",
+            "trigger_type": trigger_type
+        }
+
+    # Mark state as Running
+    db_store.update_sync_state({
+        "current_status": "Running",
+        "last_sync_attempt": start_iso,
+        "last_trigger_type": trigger_type
+    })
+
+    imported_count = 0
+    skipped_duplicates_count = 0
+    validated_count = 0
     auth_url = f"{ODK_BASE_URL}/v1/sessions"
     submissions_url = f"{ODK_BASE_URL}/v1/projects/{ODK_PROJECT_ID}/forms/{ODK_FORM_ID}.svc/Submissions?$format=json"
 
-    # Check for unconfigured or placeholder configuration
     is_unconfigured = (
         not ODK_EMAIL or
         not ODK_PASSWORD or
@@ -1610,114 +2005,351 @@ async def api_sync_odk(user: Dict[str, Any] = Depends(get_current_user)):
         "example.com" in ODK_EMAIL
     )
 
-    if is_unconfigured:
-        msg = "Live ODK Central credentials or endpoint not fully configured in .env. Please configure ODK_EMAIL, ODK_PASSWORD, ODK_PROJECT_ID, and ODK_FORM_ID."
-        db_store.add_sync_log({
-            "status": "CONFIG_REQUIRED",
-            "records_synced": 0,
-            "message": msg,
-            "user": actor,
-            "odk_endpoint": ODK_BASE_URL
-        })
-        return {
-            "status": "warning",
-            "mode": "unconfigured",
-            "records_synced": 0,
-            "message": msg
-        }
-
     ODK_DEFAULT_HEADERS = {
         "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*"
     }
 
     try:
-        # Step 1: Authenticate with ODK Central
+        if is_unconfigured:
+            msg = "Live ODK Central credentials or endpoint not fully configured in .env."
+            end_time_utc = datetime.now(timezone.utc)
+            duration = (end_time_utc - start_time_utc).total_seconds()
+            db_store.add_sync_log({
+                "status": "CONFIG_REQUIRED",
+                "trigger_type": trigger_type,
+                "start_time": start_iso,
+                "end_time": end_time_utc.isoformat(),
+                "duration_seconds": round(duration, 2),
+                "imported_count": 0,
+                "skipped_duplicates_count": 0,
+                "validated_count": 0,
+                "records_synced": 0,
+                "message": msg,
+                "error_message": None,
+                "user": actor,
+                "odk_endpoint": ODK_BASE_URL
+            })
+            db_store.update_sync_state({
+                "current_status": "Success",
+                "last_sync_attempt": end_time_utc.isoformat(),
+                "error_details": None
+            })
+            return {
+                "status": "warning",
+                "mode": "unconfigured",
+                "records_synced": 0,
+                "imported_count": 0,
+                "skipped_duplicates_count": 0,
+                "validated_count": 0,
+                "message": msg
+            }
+
+        # Step 2: Authenticate with ODK Central
         auth_resp = requests.post(
             auth_url,
             json={"email": ODK_EMAIL, "password": ODK_PASSWORD},
             headers=ODK_DEFAULT_HEADERS,
             timeout=15
         )
-
         if auth_resp.status_code != 200:
-            error_msg = f"ODK Authentication failed (HTTP {auth_resp.status_code}): {auth_resp.text[:120]}"
-            db_store.add_sync_log({
-                "status": "FAILED",
-                "records_synced": 0,
-                "message": error_msg,
-                "user": actor,
-                "odk_endpoint": ODK_BASE_URL
-            })
-            raise HTTPException(status_code=502, detail=error_msg)
+            err = f"ODK Authentication failed (HTTP {auth_resp.status_code}): {auth_resp.text[:120]}"
+            raise RuntimeError(err)
 
         auth_data = auth_resp.json()
         token = auth_data.get("token")
 
-        # Step 2: Fetch Submissions via OData JSON endpoint
+        # Step 3: Fetch submissions via OData JSON endpoint
         headers = {
             **ODK_DEFAULT_HEADERS,
             "Authorization": f"Bearer {token}"
         }
-        sub_resp = requests.get(submissions_url, headers=headers, timeout=30)
 
+        sub_resp = requests.get(submissions_url, headers=headers, timeout=35)
         if sub_resp.status_code != 200:
-            error_msg = f"Failed to retrieve submissions from ODK (HTTP {sub_resp.status_code}): {sub_resp.text[:120]}"
-            db_store.add_sync_log({
-                "status": "FAILED",
-                "records_synced": 0,
-                "message": error_msg,
-                "user": actor,
-                "odk_endpoint": ODK_BASE_URL
-            })
-            raise HTTPException(status_code=502, detail=error_msg)
+            err = f"Failed to retrieve submissions from ODK (HTTP {sub_resp.status_code}): {sub_resp.text[:120]}"
+            raise RuntimeError(err)
 
         res_json = sub_resp.json()
         items = res_json.get("value", []) if isinstance(res_json, dict) else res_json
         if not isinstance(items, list):
             items = []
 
-        # Step 3 & 4: Upsert raw & cleaned submissions
-        synced_count = 0
+        # Step 4 & 5: Deduplicate by Submission ID and insert only net-new
+        new_clean_records = []
+        latest_submission_date = None
+
         for item in items:
-            flat_item = flatten_odk_submission(item)
             inst_id = (
-                flat_item.get("instanceID") or 
-                flat_item.get("meta-instanceID") or 
-                item.get("__id")
+                item.get("__id") or 
+                (item.get("meta", {}).get("instanceID") if isinstance(item.get("meta"), dict) else None) or 
+                item.get("meta-instanceID") or 
+                item.get("instance_id") or 
+                item.get("KEY") or 
+                item.get("instanceID")
             )
             if not inst_id:
                 continue
-            flat_item["meta-instanceID"] = str(inst_id)
-            item["meta-instanceID"] = str(inst_id)
-            db_store.upsert_raw(dict(item))
-            db_store.upsert_clean(dict(flat_item))
-            synced_count += 1
 
+            inst_str = str(inst_id)
+            sys_info = item.get("__system", {}) if isinstance(item.get("__system"), dict) else {}
+            s_date = sys_info.get("submissionDate") or item.get("SubmissionDate")
+            if s_date and (latest_submission_date is None or s_date > latest_submission_date):
+                latest_submission_date = s_date
+
+            # Check if this submission already exists in raw collection
+            if db_store.is_raw_exists(inst_str):
+                skipped_duplicates_count += 1
+                continue
+
+            # Net-new submission! Insert untouched raw record
+            raw_payload = dict(item)
+            raw_payload["instance_id"] = inst_str
+            raw_payload["meta-instanceID"] = inst_str
+            inserted = db_store.insert_raw_submission(raw_payload)
+            if not inserted:
+                skipped_duplicates_count += 1
+                continue
+
+            # Flatten submission for cleaned collection
+            flat_item = flatten_odk_submission(item)
+            flat_item["instance_id"] = inst_str
+            flat_item["meta-instanceID"] = inst_str
+            db_store.upsert_clean(dict(flat_item))
+            new_clean_records.append(flat_item)
+            imported_count += 1
+
+        # Step 6: Run validation exclusively on newly inserted submissions
+        if new_clean_records:
+            try:
+                evaluate_dataset(new_clean_records)
+                validated_count = len(new_clean_records)
+            except Exception as val_err:
+                logger.warning("Non-fatal validation notice on new records: %s", val_err)
+                validated_count = len(new_clean_records)
+
+        # Step 7: Finalize Watermark & Status
+        end_time_utc = datetime.now(timezone.utc)
+        duration = (end_time_utc - start_time_utc).total_seconds()
+
+        sync_state_updates = {
+            "current_status": "Success",
+            "last_successful_sync": end_time_utc.isoformat(),
+            "last_sync_attempt": end_time_utc.isoformat(),
+            "latest_metrics": {
+                "imported_count": imported_count,
+                "skipped_duplicates_count": skipped_duplicates_count,
+                "validated_count": validated_count
+            },
+            "error_details": None,
+            "last_trigger_type": trigger_type
+        }
+        if latest_submission_date:
+            sync_state_updates["watermark_submission_date"] = latest_submission_date
+        db_store.update_sync_state(sync_state_updates)
+
+        # Record in sync_logs
+        success_msg = f"Sync completed ({trigger_type}): {imported_count} imported, {skipped_duplicates_count} skipped, {validated_count} validated."
         db_store.add_sync_log({
             "status": "SUCCESS",
-            "records_synced": synced_count,
-            "message": f"Successfully pulled {synced_count} live submissions from ODK Central.",
+            "trigger_type": trigger_type,
+            "start_time": start_iso,
+            "end_time": end_time_utc.isoformat(),
+            "duration_seconds": round(duration, 2),
+            "imported_count": imported_count,
+            "skipped_duplicates_count": skipped_duplicates_count,
+            "validated_count": validated_count,
+            "records_synced": imported_count,
+            "message": success_msg,
+            "error_message": None,
             "user": actor,
             "odk_endpoint": ODK_BASE_URL
         })
 
+        logger.info("[%s] %s (duration: %.2fs)", trigger_type.upper(), success_msg, duration)
         return {
             "status": "success",
-            "records_synced": synced_count,
-            "message": f"Successfully synced {synced_count} live submissions from ODK Central."
+            "trigger_type": trigger_type,
+            "imported_count": imported_count,
+            "skipped_duplicates_count": skipped_duplicates_count,
+            "validated_count": validated_count,
+            "records_synced": imported_count,
+            "duration_seconds": round(duration, 2),
+            "message": success_msg
         }
 
-    except requests.exceptions.RequestException as e:
-        error_msg = f"ODK Connection Error: {str(e)}"
+    except Exception as e:
+        end_time_utc = datetime.now(timezone.utc)
+        duration = (end_time_utc - start_time_utc).total_seconds()
+        err_msg = str(e)
+        logger.error("[%s] Sync pipeline failed: %s", trigger_type.upper(), err_msg)
+
+        # Record Failure in sync_state (watermark is NOT advanced!)
+        db_store.update_sync_state({
+            "current_status": "Failed",
+            "last_sync_attempt": end_time_utc.isoformat(),
+            "error_details": err_msg,
+            "last_trigger_type": trigger_type
+        })
+
+        # Record in sync_logs
         db_store.add_sync_log({
-            "status": "ERROR",
-            "records_synced": 0,
-            "message": error_msg,
+            "status": "FAILED",
+            "trigger_type": trigger_type,
+            "start_time": start_iso,
+            "end_time": end_time_utc.isoformat(),
+            "duration_seconds": round(duration, 2),
+            "imported_count": imported_count,
+            "skipped_duplicates_count": skipped_duplicates_count,
+            "validated_count": validated_count,
+            "records_synced": imported_count,
+            "message": f"Sync failed: {err_msg[:160]}",
+            "error_message": err_msg,
             "user": actor,
             "odk_endpoint": ODK_BASE_URL
         })
-        raise HTTPException(status_code=502, detail=error_msg)
+
+        if trigger_type == "manual":
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"ODK Sync Failed: {err_msg}"
+            )
+        return {
+            "status": "failed",
+            "trigger_type": trigger_type,
+            "error": err_msg,
+            "duration_seconds": round(duration, 2)
+        }
+
+    finally:
+        # Step 10: Always release distributed lock
+        db_store.release_sync_lock(worker_id=worker_id)
+
+
+# ------------------------------------------------------------------------------
+# In-Process Automatic Scheduler (Asia/Dhaka UTC+6)
+# ------------------------------------------------------------------------------
+_scheduler: Optional[AsyncIOScheduler] = None
+_scheduler_job = None
+
+
+def init_and_start_scheduler():
+    global _scheduler, _scheduler_job
+    if _scheduler is not None and _scheduler.running:
+        return _scheduler
+
+    _scheduler = AsyncIOScheduler(timezone=DHAKA_TZ)
+
+    is_dev_test = APP_ENV in ["development", "test"]
+    if is_dev_test and ODK_SYNC_TEST_CRON:
+        trigger = CronTrigger.from_crontab(ODK_SYNC_TEST_CRON, timezone=DHAKA_TZ)
+        sched_desc = f"Test Cron: {ODK_SYNC_TEST_CRON} (Asia/Dhaka)"
+    elif is_dev_test and ODK_SYNC_INTERVAL_MINUTES:
+        trigger = IntervalTrigger(minutes=int(ODK_SYNC_INTERVAL_MINUTES), timezone=DHAKA_TZ)
+        sched_desc = f"Test Interval: every {ODK_SYNC_INTERVAL_MINUTES}m (Asia/Dhaka)"
+    else:
+        # Production default: strictly twice daily at 00:00 (12:00 AM) and 12:00 (12:00 PM) Asia/Dhaka
+        trigger = CronTrigger(hour="0,12", minute="0", timezone=DHAKA_TZ)
+        sched_desc = "Twice Daily at 12:00 AM & 12:00 PM (Asia/Dhaka)"
+
+    async def scheduled_sync_job():
+        logger.info("[SCHEDULER] Triggering scheduled automatic ODK sync (%s)...", sched_desc)
+        await execute_sync_odk(trigger_type="scheduled", actor="scheduler")
+
+    _scheduler_job = _scheduler.add_job(
+        scheduled_sync_job,
+        trigger=trigger,
+        id="odk_twice_daily_sync",
+        name=f"ODK Central Sync - {sched_desc}",
+        replace_existing=True,
+        misfire_grace_time=3600
+    )
+
+    _scheduler.start()
+    logger.info("Automatic ODK Central Scheduler initialized and started: %s", sched_desc)
+    return _scheduler
+
+
+def stop_scheduler():
+    global _scheduler
+    if _scheduler and _scheduler.running:
+        _scheduler.shutdown(wait=False)
+        logger.info("Automatic ODK Central Scheduler stopped.")
+
+
+@app.on_event("startup")
+async def on_app_startup():
+    db_store.init_sync_locks_and_indexes()
+    try:
+        init_and_start_scheduler()
+    except Exception as e:
+        logger.error("Failed to start ODK scheduler on startup: %s", e)
+
+
+@app.on_event("shutdown")
+async def on_app_shutdown():
+    stop_scheduler()
+
+
+@app.get("/api/sync-status")
+async def api_get_sync_status(user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Exposes real-time synchronization status, next scheduled run, and metrics formatted in Asia/Dhaka (UTC+6).
+    """
+    state = db_store.get_sync_state()
+    lock_doc = db_store.get_sync_lock_status()
+    is_locked = bool(lock_doc.get("is_locked", False))
+    current_status = "Running" if is_locked else state.get("current_status", "Success")
+
+    next_run = calculate_next_scheduled_sync()
+    last_succ = state.get("last_successful_sync")
+    last_att = state.get("last_sync_attempt")
+
+    is_dev_test = APP_ENV in ["development", "test"]
+    override_active = bool(is_dev_test and (ODK_SYNC_TEST_CRON or ODK_SYNC_INTERVAL_MINUTES))
+
+    return {
+        "current_status": current_status,
+        "is_locked": is_locked,
+        "last_successful_sync": {
+            "utc": last_succ,
+            "dhaka": format_dhaka_timestamp(last_succ),
+            "dhaka_iso": format_dhaka_iso(last_succ)
+        },
+        "last_sync_attempt": {
+            "utc": last_att,
+            "dhaka": format_dhaka_timestamp(last_att),
+            "dhaka_iso": format_dhaka_iso(last_att)
+        },
+        "next_scheduled_sync": {
+            "utc": next_run.astimezone(timezone.utc).isoformat(),
+            "dhaka": format_dhaka_timestamp(next_run),
+            "dhaka_iso": format_dhaka_iso(next_run)
+        },
+        "latest_metrics": state.get("latest_metrics", {
+            "imported_count": 0,
+            "skipped_duplicates_count": 0,
+            "validated_count": 0
+        }),
+        "error_details": state.get("error_details"),
+        "last_trigger_type": state.get("last_trigger_type", "scheduled"),
+        "schedule_info": {
+            "timezone": "Asia/Dhaka (UTC+6)",
+            "production_schedule": "Twice daily at 12:00 AM and 12:00 PM BST",
+            "override_active": override_active,
+            "environment": APP_ENV
+        }
+    }
+
+
+@app.post("/api/sync-odk")
+async def api_sync_odk(user: Dict[str, Any] = Depends(get_current_user)):
+    """
+    Trigger manual ODK Central synchronization through the unified synchronization pipeline.
+    Guarded by distributed MongoDB lock.
+    """
+    actor = user.get("username", "system")
+    return await execute_sync_odk(trigger_type="manual", actor=actor)
 
 
 @app.post("/api/clear-sample-data")
@@ -1803,8 +2435,12 @@ async def api_get_audit_logs(user: Dict[str, Any] = Depends(get_current_user)):
 
 @app.get("/api/sync-logs")
 async def api_get_sync_logs(user: Dict[str, Any] = Depends(get_current_user)):
+    logs = db_store.get_sync_logs(limit=50)
+    for l in logs:
+        ts = l.get("start_time") or l.get("timestamp")
+        l["timestamp_dhaka"] = format_dhaka_timestamp(ts)
     return {
-        "logs": db_store.get_sync_logs(limit=50),
+        "logs": logs,
         "config": {
             "odk_base_url": ODK_BASE_URL,
             "odk_project_id": ODK_PROJECT_ID,
